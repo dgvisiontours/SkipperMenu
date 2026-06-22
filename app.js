@@ -16,6 +16,7 @@ const state = {
   demo: false,
   dirty: false,
   dietSetupRequired: false,
+  newTurnusMode: false,
 };
 
 const DEMO_REPORT = {
@@ -169,6 +170,10 @@ function openApp() {
   showView("#appView");
   $("#userMenu").classList.remove("hidden");
   $("#userLabel").textContent = `${state.profile.full_name} · ${state.profile.boats?.name || roleName(state.profile.role)}`;
+  $("#newTurnusButton").classList.toggle(
+    "hidden",
+    !["skipper", "admin"].includes(state.profile.role) || !state.profile.boat_id,
+  );
   renderNavigation();
   setupOrderPanel();
   renderDietSummary();
@@ -298,6 +303,7 @@ function syncDietFormState() {
 }
 
 function openDietModal(required = false) {
+  state.newTurnusMode = false;
   state.dietSetupRequired = required;
   const preferences = state.profile?.diet_preferences || emptyDietPreferences();
   const form = $("#dietForm");
@@ -313,7 +319,37 @@ function openDietModal(required = false) {
   form.elements.noDiets.checked = Boolean(preferences.no_diets);
   $("#dietFormError").classList.add("hidden");
   $("#closeDietModalButton").classList.toggle("hidden", required);
+  $("#newTurnusBoatField").classList.add("hidden");
+  form.elements.newBoatName.value = "";
   $("#dietModalTitle").textContent = required ? "Najpierw ustaw diety załogi" : "Diety i alergie";
+  $("#dietModalDescription").textContent = "Zaznacz występujące diety i podaj liczbę osób.";
+  $("#dietModal").classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  syncDietFormState();
+}
+
+function openNewTurnusModal() {
+  state.newTurnusMode = true;
+  state.dietSetupRequired = false;
+  const form = $("#dietForm");
+  const preferences = emptyDietPreferences();
+  form.elements.vegetarianEnabled.checked = preferences.vegetarian.enabled;
+  form.elements.vegetarianCount.value = 1;
+  form.elements.lactoseFreeEnabled.checked = preferences.lactose_free.enabled;
+  form.elements.lactoseFreeCount.value = 1;
+  form.elements.glutenFreeEnabled.checked = preferences.gluten_free.enabled;
+  form.elements.glutenFreeCount.value = 1;
+  form.elements.otherEnabled.checked = preferences.other.enabled;
+  form.elements.otherCount.value = 1;
+  form.elements.otherDescription.value = "";
+  form.elements.noDiets.checked = false;
+  form.elements.newBoatName.value = "";
+  $("#newTurnusBoatField").classList.remove("hidden");
+  $("#closeDietModalButton").classList.remove("hidden");
+  $("#dietModalTitle").textContent = "Rozpocznij nowy turnus";
+  $("#dietModalDescription").textContent = "Podaj nowy jacht i ustaw diety jego załogi. Historia poprzedniego turnusu pozostanie bez zmian.";
+  $("#dietFormError").classList.add("hidden");
+  $("#saveDietsButton").textContent = "Rozpocznij nowy turnus";
   $("#dietModal").classList.remove("hidden");
   document.body.classList.add("modal-open");
   syncDietFormState();
@@ -323,6 +359,8 @@ function closeDietModal() {
   if (state.dietSetupRequired) return;
   $("#dietModal").classList.add("hidden");
   document.body.classList.remove("modal-open");
+  state.newTurnusMode = false;
+  $("#saveDietsButton").textContent = "Zapisz profil załogi";
 }
 
 function collectDietPreferences() {
@@ -362,7 +400,9 @@ function validateDietPreferences(preferences) {
 async function saveDietPreferences(event) {
   event.preventDefault();
   const preferences = collectDietPreferences();
-  const error = validateDietPreferences(preferences);
+  let error = validateDietPreferences(preferences);
+  const newBoatName = $("#dietForm").elements.newBoatName.value.trim();
+  if (state.newTurnusMode && newBoatName.length < 2) error = "Podaj nazwę jachtu na nowy turnus.";
   const errorElement = $("#dietFormError");
   if (error) {
     errorElement.textContent = error;
@@ -371,8 +411,31 @@ async function saveDietPreferences(event) {
   }
   const button = $("#saveDietsButton");
   button.disabled = true;
-  button.textContent = "Zapisywanie…";
+  button.textContent = state.newTurnusMode ? "Tworzenie turnusu…" : "Zapisywanie…";
   try {
+    if (state.newTurnusMode) {
+      let result;
+      if (state.demo) {
+        result = { boat_id: `demo-${Date.now()}`, boat_name: newBoatName, diet_preferences: preferences };
+      } else {
+        result = await api("/rest/v1/rpc/start_new_turnus", {
+          method: "POST",
+          body: { p_boat_name: newBoatName, p_preferences: preferences },
+        });
+      }
+      state.profile.boat_id = result.boat_id;
+      state.profile.boats = { name: result.boat_name };
+      state.profile.diet_preferences = result.diet_preferences;
+      state.quantities.clear();
+      $("#specialRequests").value = "";
+      $("#userLabel").textContent = `${state.profile.full_name} · ${result.boat_name}`;
+      $("#heroSubtitle").textContent = `${result.boat_name} · wydanie ${formatDate(tomorrowDate())}`;
+      renderProducts();
+      renderDietSummary();
+      closeDietModal();
+      toast(`Nowy turnus na jachcie „${result.boat_name}” jest gotowy.`);
+      return;
+    }
     if (!state.demo) {
       await api("/rest/v1/rpc/save_diet_preferences", {
         method: "POST", body: { p_preferences: preferences },
@@ -388,7 +451,7 @@ async function saveDietPreferences(event) {
     errorElement.classList.remove("hidden");
   } finally {
     button.disabled = false;
-    button.textContent = "Zapisz profil załogi";
+    button.textContent = state.newTurnusMode ? "Rozpocznij nowy turnus" : "Zapisz profil załogi";
   }
 }
 
@@ -639,6 +702,7 @@ function bindEvents() {
   $("#reportDate").addEventListener("change", loadReport);
   $("#submitOrderButton").addEventListener("click", submitOrder);
   $("#editDietsButton").addEventListener("click", () => openDietModal(false));
+  $("#newTurnusButton").addEventListener("click", openNewTurnusModal);
   $("#closeDietModalButton").addEventListener("click", closeDietModal);
   $("#dietForm").addEventListener("submit", saveDietPreferences);
   $$("#dietForm input[type='checkbox']").forEach((input) => input.addEventListener("change", () => {

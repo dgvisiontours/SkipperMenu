@@ -295,6 +295,12 @@ td.qty { text-align: right; font-weight: 800; color: var(--sea); white-space: no
 }
 .no-diets-option input { width: 19px; height: 19px; margin: 0; accent-color: var(--sea-2); }
 .form-error { margin: 0 0 12px; padding: 10px 12px; color: #8b3d32; background: #fff0eb; border-radius: 10px; font-size: 13px; }
+.turnus-boat-field {
+  display: block; margin-top: 22px; padding: 16px; color: var(--ink);
+  background: #edf6f3; border: 1px solid #bfd6d0; border-radius: 14px;
+}
+.turnus-boat-field input { background: #fff; }
+.turnus-boat-field small { display: block; margin-top: 7px; color: var(--muted); font-weight: 400; }
 footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 850px) {
@@ -313,6 +319,8 @@ footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px
   main { width: min(100% - 20px, 1180px); }
   .topbar { height: 66px; padding: 0 12px; }
   .brand small, #userLabel { display: none; }
+  .user-menu { gap: 6px; }
+  .user-menu .button { padding: 8px 9px; font-size: 11px; }
   .app-shell { padding-top: 26px; }
   .hero { display: grid; }
   .hero h1 { font-size: 43px; }

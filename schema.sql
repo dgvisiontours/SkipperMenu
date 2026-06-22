@@ -8,10 +8,14 @@ end $$;
 
 create table if not exists public.boats (
   id uuid primary key default gen_random_uuid(),
-  name text not null unique,
+  name text not null,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+alter table public.boats drop constraint if exists boats_name_key;
+create unique index if not exists boats_active_name_unique
+  on public.boats (lower(name)) where active;
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -230,6 +234,79 @@ begin
 end;
 $$;
 
+create or replace function public.start_new_turnus(
+  p_boat_name text,
+  p_preferences jsonb
+) returns jsonb
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_role public.app_role;
+  v_old_boat_id uuid;
+  v_new_boat_id uuid;
+  v_boat_name text := trim(p_boat_name);
+  v_no_diets boolean := coalesce((p_preferences->>'no_diets')::boolean, false);
+  v_any_enabled boolean;
+begin
+  select role, boat_id into v_role, v_old_boat_id
+  from public.profiles where id = auth.uid();
+
+  if v_role not in ('skipper', 'admin') or v_old_boat_id is null then
+    raise exception 'Tylko sternik przypisany do jachtu może rozpocząć nowy turnus.';
+  end if;
+  if v_boat_name is null or length(v_boat_name) < 2 then
+    raise exception 'Podaj nazwę jachtu.';
+  end if;
+
+  v_any_enabled :=
+    coalesce((p_preferences->'vegetarian'->>'enabled')::boolean, false)
+    or coalesce((p_preferences->'lactose_free'->>'enabled')::boolean, false)
+    or coalesce((p_preferences->'gluten_free'->>'enabled')::boolean, false)
+    or coalesce((p_preferences->'other'->>'enabled')::boolean, false);
+
+  if not v_no_diets and not v_any_enabled then
+    raise exception 'Wybierz przynajmniej jedną dietę albo zaznacz brak diet.';
+  end if;
+  if v_no_diets and v_any_enabled then
+    raise exception 'Nie można jednocześnie wybrać diet i braku diet.';
+  end if;
+  if coalesce((p_preferences->'other'->>'enabled')::boolean, false)
+    and nullif(trim(p_preferences->'other'->>'description'), '') is null then
+    raise exception 'Opisz inną dietę lub alergię.';
+  end if;
+  if exists (
+    select 1 from (values
+      (p_preferences->'vegetarian'), (p_preferences->'lactose_free'),
+      (p_preferences->'gluten_free'), (p_preferences->'other')
+    ) as d(item)
+    where coalesce((item->>'enabled')::boolean, false)
+      and coalesce((item->>'count')::integer, 0) < 1
+  ) then
+    raise exception 'Liczba osób musi wynosić co najmniej 1.';
+  end if;
+
+  update public.boats set active = false where id = v_old_boat_id;
+
+  begin
+    insert into public.boats(name, active) values (v_boat_name, true)
+    returning id into v_new_boat_id;
+  exception when unique_violation then
+    raise exception 'Aktywny jacht o tej nazwie już istnieje.';
+  end;
+
+  update public.profiles
+  set boat_id = v_new_boat_id, diet_preferences = p_preferences
+  where id = auth.uid();
+
+  return jsonb_build_object(
+    'boat_id', v_new_boat_id,
+    'boat_name', v_boat_name,
+    'diet_preferences', p_preferences
+  );
+end;
+$$;
+
 -- Zapisy odbywają się wyłącznie przez tę funkcję. Deadline jest sprawdzany po stronie serwera.
 create or replace function public.submit_order(
   p_target_date date,
@@ -361,6 +438,7 @@ $$;
 grant execute on function public.submit_order(date,text,text,text[],jsonb) to authenticated;
 grant execute on function public.get_supplier_report(date) to authenticated;
 grant execute on function public.save_diet_preferences(jsonb) to authenticated;
+grant execute on function public.start_new_turnus(text,jsonb) to authenticated;
 grant execute on function public.current_app_role() to authenticated;
 grant execute on function public.current_boat_id() to authenticated;
 

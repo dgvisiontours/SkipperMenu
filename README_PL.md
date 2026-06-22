@@ -9,6 +9,7 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - osobna baza śniadań z przepisami, składnikami i wskazówkami do przygotowania na jachcie;
 - obowiązkowy profil diet załogi przed pierwszym zamówieniem: wege, bez laktozy, bez glutenu i inne;
 - możliwość późniejszej edycji diet oraz specjalne prośby w zamówieniu;
+- przycisk **Nowy turnus**, który bez tworzenia nowego konta zmienia jacht i profil diet załogi;
 - jedno zamówienie jachtu na następny dzień, z możliwością poprawiania do 21:00;
 - blokada po 21:00 egzekwowana również w bazie danych;
 - panel zaopatrzeniowca: suma produktów, rozpiska na jachty, brakujące zamówienia;
@@ -142,6 +143,13 @@ Hosting musi działać przez HTTPS — Netlify zapewnia go automatycznie.
    - kupuje według listy skonsolidowanej;
    - pakuje produkty według kart poszczególnych jachtów;
    - widzi, które jachty nie złożyły zamówienia.
+
+## Rozpoczęcie kolejnego turnusu
+
+Po zakończeniu turnusu sternik wybiera **Nowy turnus** w górnym pasku aplikacji,
+podaje nazwę kolejnego jachtu i ustawia diety nowej załogi. Poprzedni jacht zostaje
+dezaktywowany, ale jego wcześniejsze zamówienia pozostają w historii. Konto, e-mail
+i hasło sternika nie zmieniają się.
 
 ## Ważne decyzje przed startem
 

@@ -23,6 +23,7 @@
       </a>
       <div id="userMenu" class="user-menu hidden">
         <span id="userLabel"></span>
+        <button id="newTurnusButton" class="button secondary compact hidden" type="button">Nowy turnus</button>
         <button id="logoutButton" class="button ghost compact">Wyloguj</button>
       </div>
     </header>
@@ -193,10 +194,16 @@
           <div>
             <span class="eyebrow">Profil załogi</span>
             <h2 id="dietModalTitle">Diety i alergie</h2>
-            <p>Zaznacz występujące diety i podaj liczbę osób.</p>
+            <p id="dietModalDescription">Zaznacz występujące diety i podaj liczbę osób.</p>
           </div>
           <button id="closeDietModalButton" class="modal-close" type="button" aria-label="Zamknij">×</button>
         </div>
+
+        <label id="newTurnusBoatField" class="turnus-boat-field hidden">
+          Nazwa jachtu na nowy turnus
+          <input name="newBoatName" type="text" maxlength="80" placeholder="np. Antila 27 — Mewa" />
+          <small>Poprzedni jacht zachowa historię, ale przestanie być aktywny.</small>
+        </label>
 
         <div class="diet-options">
           <label class="diet-option">
