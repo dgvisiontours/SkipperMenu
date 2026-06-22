@@ -173,6 +173,7 @@ h3 { font-size: 23px; }
 }
 .diet-pill.neutral { color: var(--muted); background: #f1f1ec; border-color: var(--line); }
 .diet-pill.warning { color: #91463a; background: #fff0e8; border-color: #efc1b4; }
+.diet-pill.crew { color: #fff; background: var(--sea); border-color: var(--sea); }
 .sticky-submit {
   position: sticky; bottom: 12px; display: flex; align-items: center; justify-content: space-between;
   gap: 18px; margin-top: 22px; padding: 16px 18px; color: #fff; background: rgba(11,79,92,.96);
@@ -301,6 +302,22 @@ td.qty { text-align: right; font-weight: 800; color: var(--sea); white-space: no
 }
 .turnus-boat-field input { background: #fff; }
 .turnus-boat-field small { display: block; margin-top: 7px; color: var(--muted); font-weight: 400; }
+.crew-profile-section {
+  margin-top: 16px; padding: 16px; background: #f5f7f2; border: 1px solid var(--line); border-radius: 15px;
+}
+.crew-profile-section h3 { margin: 0 0 12px; font-size: 19px; }
+.boat-type-options { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.boat-type-option {
+  display: flex; align-items: flex-start; gap: 9px; padding: 12px; border: 1px solid var(--line);
+  border-radius: 12px; background: #fff; cursor: pointer;
+}
+.boat-type-option:has(input:checked) { border-color: var(--sea-2); background: #edf8f5; }
+.boat-type-option input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--sea-2); }
+.boat-type-option strong, .boat-type-option small { display: block; }
+.boat-type-option small { margin-top: 3px; color: var(--muted); font-weight: 400; }
+.crew-count-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 12px; }
+.crew-count-grid input { margin-bottom: 0; text-align: center; }
+.crew-count-help { display: block; margin-top: 8px; color: var(--muted); }
 footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 850px) {
@@ -345,6 +362,10 @@ footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px
   .diet-label { grid-column: 2; }
   .diet-count { grid-column: 3; width: 64px; }
   .diet-description { grid-column: 2 / 4; }
+  .boat-type-options { grid-template-columns: 1fr; }
+  .crew-count-grid { grid-template-columns: repeat(3, 1fr); }
+  .crew-count-grid label { font-size: 11px; }
+  .crew-count-grid input { padding: 10px 5px; }
   .boat-body ul { columns: 1; }
 }
 @media print {

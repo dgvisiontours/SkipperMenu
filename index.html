@@ -112,7 +112,7 @@
           <div class="notes-grid">
             <article class="field-card diet-summary-card">
               <div class="field-card-heading">
-                <span>Diety i alergie załogi</span>
+              <span>Profil jachtu i załogi</span>
                 <button id="editDietsButton" class="button ghost compact" type="button">Edytuj</button>
               </div>
               <div id="dietSummary" class="diet-summary"></div>
@@ -204,6 +204,32 @@
           <input name="newBoatName" type="text" maxlength="80" placeholder="np. Antila 27 — Mewa" />
           <small>Poprzedni jacht zachowa historię, ale przestanie być aktywny.</small>
         </label>
+
+        <section class="crew-profile-section">
+          <h3>Jacht i skład załogi</h3>
+          <div class="boat-type-options">
+            <label class="boat-type-option">
+              <input name="boatType" type="radio" value="recreational" />
+              <span><strong>Jacht rekreacyjny</strong><small>Rejs turystyczny lub wypoczynkowy</small></span>
+            </label>
+            <label class="boat-type-option">
+              <input name="boatType" type="radio" value="training" />
+              <span><strong>Jacht szkoleniowy</strong><small>Załoga uczestnicząca w szkoleniu</small></span>
+            </label>
+          </div>
+          <div class="crew-count-grid">
+            <label>Wszystkie osoby
+              <input name="crewTotal" type="number" inputmode="numeric" min="1" max="99" placeholder="0" />
+            </label>
+            <label>Kobiety
+              <input name="womenCount" type="number" inputmode="numeric" min="0" max="99" placeholder="0" />
+            </label>
+            <label>Mężczyźni
+              <input name="menCount" type="number" inputmode="numeric" min="0" max="99" placeholder="0" />
+            </label>
+          </div>
+          <small class="crew-count-help">Liczba kobiet i mężczyzn musi być równa liczbie wszystkich osób.</small>
+        </section>
 
         <div class="diet-options">
           <label class="diet-option">

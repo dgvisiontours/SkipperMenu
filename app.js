@@ -147,7 +147,7 @@ async function restoreSession() {
 async function loadProfileAndProducts() {
   const userId = state.session.user.id;
   const [profiles, products] = await Promise.all([
-    api(`/rest/v1/profiles?select=id,full_name,role,boat_id,diet_preferences,boats(name)&id=eq.${userId}`),
+    api(`/rest/v1/profiles?select=id,full_name,role,boat_id,diet_preferences,boats(name,crew_profile)&id=eq.${userId}`),
     api("/rest/v1/products?select=id,name,category,unit,sort_order&active=eq.true&order=sort_order.asc"),
   ]);
   if (!profiles[0]) throw new Error("Brak profilu użytkownika. Uruchom ponownie skrypt schema.sql.");
@@ -182,7 +182,11 @@ function openApp() {
   updateDeadline();
   const role = state.profile.role;
   switchPanel(role === "supplier" ? "supplier" : "skipper");
-  if (["skipper", "admin"].includes(role) && state.profile.boat_id && !state.profile.diet_preferences) {
+  if (
+    ["skipper", "admin"].includes(role)
+    && state.profile.boat_id
+    && (!state.profile.diet_preferences || !state.profile.boats?.crew_profile)
+  ) {
     openDietModal(true);
   }
 }
@@ -268,12 +272,18 @@ function renderDietSummary() {
   const summary = $("#dietSummary");
   if (!summary) return;
   const preferences = state.profile?.diet_preferences;
-  if (!preferences) {
+  const crew = state.profile?.boats?.crew_profile;
+  if (!preferences || !crew) {
     summary.innerHTML = `<span class="diet-pill warning">Wymaga uzupełnienia</span>`;
     return;
   }
+  const typeLabel = crew.boat_type === "training" ? "jacht szkoleniowy" : "jacht rekreacyjny";
+  const crewPills = [
+    `<span class="diet-pill crew">${escapeHtml(typeLabel)}</span>`,
+    `<span class="diet-pill crew">${crew.total} osób · ${crew.women} K · ${crew.men} M</span>`,
+  ];
   if (preferences.no_diets) {
-    summary.innerHTML = `<span class="diet-pill neutral">Brak diet i alergii</span>`;
+    summary.innerHTML = `${crewPills.join("")}<span class="diet-pill neutral">Brak diet i alergii</span>`;
     return;
   }
   const pills = [];
@@ -281,7 +291,7 @@ function renderDietSummary() {
   if (preferences.lactose_free?.enabled) pills.push(`${preferences.lactose_free.count} × bez laktozy`);
   if (preferences.gluten_free?.enabled) pills.push(`${preferences.gluten_free.count} × bez glutenu`);
   if (preferences.other?.enabled) pills.push(`${preferences.other.count} × ${preferences.other.description}`);
-  summary.innerHTML = pills.map((text) => `<span class="diet-pill">${escapeHtml(text)}</span>`).join("");
+  summary.innerHTML = crewPills.join("") + pills.map((text) => `<span class="diet-pill">${escapeHtml(text)}</span>`).join("");
 }
 
 function syncDietFormState() {
@@ -317,11 +327,18 @@ function openDietModal(required = false) {
   form.elements.otherCount.value = preferences.other?.count || 1;
   form.elements.otherDescription.value = preferences.other?.description || "";
   form.elements.noDiets.checked = Boolean(preferences.no_diets);
+  const crew = state.profile?.boats?.crew_profile || {};
+  const boatType = form.querySelector(`input[name="boatType"][value="${crew.boat_type || ""}"]`);
+  form.querySelectorAll('input[name="boatType"]').forEach((input) => { input.checked = false; });
+  if (boatType) boatType.checked = true;
+  form.elements.crewTotal.value = crew.total ?? "";
+  form.elements.womenCount.value = crew.women ?? "";
+  form.elements.menCount.value = crew.men ?? "";
   $("#dietFormError").classList.add("hidden");
   $("#closeDietModalButton").classList.toggle("hidden", required);
   $("#newTurnusBoatField").classList.add("hidden");
   form.elements.newBoatName.value = "";
-  $("#dietModalTitle").textContent = required ? "Najpierw ustaw diety załogi" : "Diety i alergie";
+  $("#dietModalTitle").textContent = required ? "Najpierw ustaw profil załogi" : "Profil jachtu i załogi";
   $("#dietModalDescription").textContent = "Zaznacz występujące diety i podaj liczbę osób.";
   $("#dietModal").classList.remove("hidden");
   document.body.classList.add("modal-open");
@@ -343,6 +360,10 @@ function openNewTurnusModal() {
   form.elements.otherCount.value = 1;
   form.elements.otherDescription.value = "";
   form.elements.noDiets.checked = false;
+  form.querySelectorAll('input[name="boatType"]').forEach((input) => { input.checked = false; });
+  form.elements.crewTotal.value = "";
+  form.elements.womenCount.value = "";
+  form.elements.menCount.value = "";
   form.elements.newBoatName.value = "";
   $("#newTurnusBoatField").classList.remove("hidden");
   $("#closeDietModalButton").classList.remove("hidden");
@@ -387,12 +408,34 @@ function collectDietPreferences() {
   };
 }
 
-function validateDietPreferences(preferences) {
+function collectCrewProfile() {
+  const form = $("#dietForm");
+  return {
+    boat_type: form.querySelector('input[name="boatType"]:checked')?.value || "",
+    total: Number(form.elements.crewTotal.value) || 0,
+    women: Number(form.elements.womenCount.value) || 0,
+    men: Number(form.elements.menCount.value) || 0,
+  };
+}
+
+function validateCrewProfile(crew) {
+  if (!["recreational", "training"].includes(crew.boat_type)) return "Wybierz, czy jacht jest rekreacyjny, czy szkoleniowy.";
+  if (crew.total < 1) return "Podaj liczbę wszystkich osób w załodze.";
+  if (crew.women < 0 || crew.men < 0 || crew.women + crew.men !== crew.total) {
+    return "Liczba kobiet i mężczyzn musi być równa liczbie wszystkich osób.";
+  }
+  return "";
+}
+
+function validateDietPreferences(preferences, crewTotal = 0) {
   const enabled = [preferences.vegetarian, preferences.lactose_free, preferences.gluten_free, preferences.other]
     .filter((diet) => diet.enabled);
   if (!preferences.no_diets && enabled.length === 0) return "Wybierz przynajmniej jedną dietę albo zaznacz brak diet.";
   if (preferences.no_diets && enabled.length) return "Nie można jednocześnie wybrać diet i braku diet.";
   if (enabled.some((diet) => diet.count < 1)) return "Podaj liczbę osób dla każdej zaznaczonej diety.";
+  if (crewTotal > 0 && enabled.some((diet) => diet.count > crewTotal)) {
+    return "Liczba osób na diecie nie może przekraczać liczby osób w załodze.";
+  }
   if (preferences.other.enabled && !preferences.other.description) return "Wpisz nazwę innej diety lub alergii.";
   return "";
 }
@@ -400,7 +443,8 @@ function validateDietPreferences(preferences) {
 async function saveDietPreferences(event) {
   event.preventDefault();
   const preferences = collectDietPreferences();
-  let error = validateDietPreferences(preferences);
+  const crewProfile = collectCrewProfile();
+  let error = validateCrewProfile(crewProfile) || validateDietPreferences(preferences, crewProfile.total);
   const newBoatName = $("#dietForm").elements.newBoatName.value.trim();
   if (state.newTurnusMode && newBoatName.length < 2) error = "Podaj nazwę jachtu na nowy turnus.";
   const errorElement = $("#dietFormError");
@@ -416,16 +460,20 @@ async function saveDietPreferences(event) {
     if (state.newTurnusMode) {
       let result;
       if (state.demo) {
-        result = { boat_id: `demo-${Date.now()}`, boat_name: newBoatName, diet_preferences: preferences };
+        result = {
+          boat_id: `demo-${Date.now()}`, boat_name: newBoatName,
+          diet_preferences: preferences, crew_profile: crewProfile,
+        };
       } else {
         result = await api("/rest/v1/rpc/start_new_turnus", {
           method: "POST",
-          body: { p_boat_name: newBoatName, p_preferences: preferences },
+          body: { p_boat_name: newBoatName, p_preferences: preferences, p_crew_profile: crewProfile },
         });
       }
       state.profile.boat_id = result.boat_id;
       state.profile.boats = { name: result.boat_name };
       state.profile.diet_preferences = result.diet_preferences;
+      state.profile.boats.crew_profile = result.crew_profile;
       state.quantities.clear();
       $("#specialRequests").value = "";
       $("#userLabel").textContent = `${state.profile.full_name} · ${result.boat_name}`;
@@ -437,15 +485,16 @@ async function saveDietPreferences(event) {
       return;
     }
     if (!state.demo) {
-      await api("/rest/v1/rpc/save_diet_preferences", {
-        method: "POST", body: { p_preferences: preferences },
+      await api("/rest/v1/rpc/save_crew_profile", {
+        method: "POST", body: { p_preferences: preferences, p_crew_profile: crewProfile },
       });
     }
     state.profile.diet_preferences = preferences;
+    state.profile.boats.crew_profile = crewProfile;
     state.dietSetupRequired = false;
     renderDietSummary();
     closeDietModal();
-    toast("Profil diet załogi został zapisany.");
+    toast("Profil jachtu i załogi został zapisany.");
   } catch (saveError) {
     errorElement.textContent = saveError.message;
     errorElement.classList.remove("hidden");
@@ -586,9 +635,9 @@ async function loadMyOrder() {
 }
 
 async function submitOrder() {
-  if (!state.profile.diet_preferences) {
+  if (!state.profile.diet_preferences || !state.profile.boats?.crew_profile) {
     openDietModal(true);
-    toast("Przed pierwszym zamówieniem uzupełnij diety załogi.", true);
+    toast("Przed pierwszym zamówieniem uzupełnij profil jachtu i załogi.", true);
     return;
   }
   if (isCutoffPassed() && state.profile.role === "skipper") {

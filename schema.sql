@@ -9,9 +9,12 @@ end $$;
 create table if not exists public.boats (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  crew_profile jsonb,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+alter table public.boats add column if not exists crew_profile jsonb;
 
 alter table public.boats drop constraint if exists boats_name_key;
 create unique index if not exists boats_active_name_unique
@@ -234,9 +237,55 @@ begin
 end;
 $$;
 
+create or replace function public.save_crew_profile(
+  p_preferences jsonb,
+  p_crew_profile jsonb
+) returns jsonb
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_boat_id uuid;
+  v_boat_type text := p_crew_profile->>'boat_type';
+  v_total integer := coalesce((p_crew_profile->>'total')::integer, 0);
+  v_women integer := coalesce((p_crew_profile->>'women')::integer, 0);
+  v_men integer := coalesce((p_crew_profile->>'men')::integer, 0);
+begin
+  select boat_id into v_boat_id from public.profiles where id = auth.uid();
+  if v_boat_id is null then raise exception 'Konto nie jest przypisane do jachtu.'; end if;
+  if v_boat_type not in ('recreational', 'training') then
+    raise exception 'Wybierz typ jachtu.';
+  end if;
+  if v_total < 1 or v_women < 0 or v_men < 0 or v_women + v_men <> v_total then
+    raise exception 'Liczba kobiet i mężczyzn musi być równa liczbie wszystkich osób.';
+  end if;
+  if exists (
+    select 1 from (values
+      (p_preferences->'vegetarian'), (p_preferences->'lactose_free'),
+      (p_preferences->'gluten_free'), (p_preferences->'other')
+    ) as d(item)
+    where coalesce((item->>'enabled')::boolean, false)
+      and coalesce((item->>'count')::integer, 0) > v_total
+  ) then
+    raise exception 'Liczba osób na diecie nie może przekraczać liczby osób w załodze.';
+  end if;
+
+  perform public.save_diet_preferences(p_preferences);
+  update public.boats set crew_profile = p_crew_profile where id = v_boat_id;
+
+  return jsonb_build_object(
+    'diet_preferences', p_preferences,
+    'crew_profile', p_crew_profile
+  );
+end;
+$$;
+
+drop function if exists public.start_new_turnus(text,jsonb);
+
 create or replace function public.start_new_turnus(
   p_boat_name text,
-  p_preferences jsonb
+  p_preferences jsonb,
+  p_crew_profile jsonb
 ) returns jsonb
 language plpgsql security definer
 set search_path = public
@@ -248,6 +297,10 @@ declare
   v_boat_name text := trim(p_boat_name);
   v_no_diets boolean := coalesce((p_preferences->>'no_diets')::boolean, false);
   v_any_enabled boolean;
+  v_boat_type text := p_crew_profile->>'boat_type';
+  v_total integer := coalesce((p_crew_profile->>'total')::integer, 0);
+  v_women integer := coalesce((p_crew_profile->>'women')::integer, 0);
+  v_men integer := coalesce((p_crew_profile->>'men')::integer, 0);
 begin
   select role, boat_id into v_role, v_old_boat_id
   from public.profiles where id = auth.uid();
@@ -257,6 +310,12 @@ begin
   end if;
   if v_boat_name is null or length(v_boat_name) < 2 then
     raise exception 'Podaj nazwę jachtu.';
+  end if;
+  if v_boat_type not in ('recreational', 'training') then
+    raise exception 'Wybierz typ jachtu.';
+  end if;
+  if v_total < 1 or v_women < 0 or v_men < 0 or v_women + v_men <> v_total then
+    raise exception 'Liczba kobiet i mężczyzn musi być równa liczbie wszystkich osób.';
   end if;
 
   v_any_enabled :=
@@ -285,11 +344,21 @@ begin
   ) then
     raise exception 'Liczba osób musi wynosić co najmniej 1.';
   end if;
+  if exists (
+    select 1 from (values
+      (p_preferences->'vegetarian'), (p_preferences->'lactose_free'),
+      (p_preferences->'gluten_free'), (p_preferences->'other')
+    ) as d(item)
+    where coalesce((item->>'enabled')::boolean, false)
+      and coalesce((item->>'count')::integer, 0) > v_total
+  ) then
+    raise exception 'Liczba osób na diecie nie może przekraczać liczby osób w załodze.';
+  end if;
 
   update public.boats set active = false where id = v_old_boat_id;
 
   begin
-    insert into public.boats(name, active) values (v_boat_name, true)
+    insert into public.boats(name, crew_profile, active) values (v_boat_name, p_crew_profile, true)
     returning id into v_new_boat_id;
   exception when unique_violation then
     raise exception 'Aktywny jacht o tej nazwie już istnieje.';
@@ -302,7 +371,8 @@ begin
   return jsonb_build_object(
     'boat_id', v_new_boat_id,
     'boat_name', v_boat_name,
-    'diet_preferences', p_preferences
+    'diet_preferences', p_preferences,
+    'crew_profile', p_crew_profile
   );
 end;
 $$;
@@ -324,11 +394,17 @@ declare
   v_order_id uuid;
   v_local_now timestamp;
   v_diet_preferences jsonb;
+  v_crew_profile jsonb;
 begin
-  select role, boat_id, diet_preferences into v_role, v_boat_id, v_diet_preferences
-  from public.profiles where id = auth.uid();
+  select p.role, p.boat_id, p.diet_preferences, b.crew_profile
+  into v_role, v_boat_id, v_diet_preferences, v_crew_profile
+  from public.profiles p
+  left join public.boats b on b.id = p.boat_id
+  where p.id = auth.uid();
   if v_role is null or v_boat_id is null then raise exception 'Konto nie jest przypisane do jachtu.'; end if;
-  if v_diet_preferences is null then raise exception 'Najpierw uzupełnij profil diet załogi.'; end if;
+  if v_diet_preferences is null or v_crew_profile is null then
+    raise exception 'Najpierw uzupełnij profil jachtu i załogi.';
+  end if;
 
   v_local_now := now() at time zone 'Europe/Warsaw';
   if v_role = 'skipper' then
@@ -438,7 +514,8 @@ $$;
 grant execute on function public.submit_order(date,text,text,text[],jsonb) to authenticated;
 grant execute on function public.get_supplier_report(date) to authenticated;
 grant execute on function public.save_diet_preferences(jsonb) to authenticated;
-grant execute on function public.start_new_turnus(text,jsonb) to authenticated;
+grant execute on function public.save_crew_profile(jsonb,jsonb) to authenticated;
+grant execute on function public.start_new_turnus(text,jsonb,jsonb) to authenticated;
 grant execute on function public.current_app_role() to authenticated;
 grant execute on function public.current_boat_id() to authenticated;
 
