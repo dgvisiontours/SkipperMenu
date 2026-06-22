@@ -529,7 +529,7 @@ async function submitOrder() {
     return;
   }
   if (isCutoffPassed() && state.profile.role === "skipper") {
-    toast("Termin minął o 18:00. Skontaktuj się z zaopatrzeniowcem.", true);
+    toast(`Termin minął o ${String(CONFIG.CUTOFF_HOUR).padStart(2, "0")}:00. Skontaktuj się z zaopatrzeniowcem.`, true);
     return;
   }
   const items = [...state.quantities].map(([product_id, quantity]) => ({ product_id, quantity }));

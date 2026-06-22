@@ -9,8 +9,8 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - osobna baza śniadań z przepisami, składnikami i wskazówkami do przygotowania na jachcie;
 - obowiązkowy profil diet załogi przed pierwszym zamówieniem: wege, bez laktozy, bez glutenu i inne;
 - możliwość późniejszej edycji diet oraz specjalne prośby w zamówieniu;
-- jedno zamówienie jachtu na następny dzień, z możliwością poprawiania do 18:00;
-- blokada po 18:00 egzekwowana również w bazie danych;
+- jedno zamówienie jachtu na następny dzień, z możliwością poprawiania do 21:00;
+- blokada po 21:00 egzekwowana również w bazie danych;
 - panel zaopatrzeniowca: suma produktów, rozpiska na jachty, brakujące zamówienia;
 - eksport listy zakupów do CSV i drukowanie/zapis do PDF;
 - logowanie i role: sternik, zaopatrzeniowiec, administrator;
@@ -59,7 +59,7 @@ export const CONFIG = {
   SUPABASE_ANON_KEY: "eyJhbGciOi...",
   DEMO_MODE: false,
   TIMEZONE: "Europe/Warsaw",
-  CUTOFF_HOUR: 18,
+  CUTOFF_HOUR: 21,
 };
 ```
 
@@ -135,9 +135,9 @@ Hosting musi działać przez HTTPS — Netlify zapewnia go automatycznie.
 ## Codzienny sposób pracy
 
 1. Sternik omawia z załogą potrzeby na następny dzień.
-2. Do 18:00 wybiera produkty, wpisuje ilości, diety i specjale.
+2. Do 21:00 wybiera produkty, wpisuje ilości, diety i specjale.
 3. Może zapisywać poprawki wielokrotnie; liczy się ostatnia wersja.
-4. Po 18:00 konto sternika nie może już zmienić zamówienia.
+4. Po 21:00 konto sternika nie może już zmienić zamówienia.
 5. Zaopatrzeniowiec otwiera raport na dzień wydania:
    - kupuje według listy skonsolidowanej;
    - pakuje produkty według kart poszczególnych jachtów;

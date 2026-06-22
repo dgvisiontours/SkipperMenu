@@ -258,8 +258,8 @@ begin
     if p_target_date <> v_local_now::date + 1 then
       raise exception 'Sternik może zamówić wyłącznie na następny dzień.';
     end if;
-    if v_local_now::time >= time '18:00' then
-      raise exception 'Termin składania zamówień minął o 18:00.';
+    if v_local_now::time >= time '21:00' then
+      raise exception 'Termin składania zamówień minął o 21:00.';
     end if;
   end if;
 
