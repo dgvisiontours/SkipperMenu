@@ -164,6 +164,16 @@ h3 { font-size: 23px; }
 .field-card { padding: 18px; box-shadow: none; }
 .field-card > span { display: block; font-family: Georgia, serif; font-size: 19px; }
 .field-card small { display: block; color: var(--muted); margin-top: 7px; }
+.location-card { margin: 0; min-width: 0; }
+.location-card legend { padding: 0; font-family: Georgia, serif; font-size: 19px; font-weight: 700; }
+.location-card p { margin: 8px 0 13px; color: var(--muted); font-size: 12px; font-weight: 400; }
+.order-location-options { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.order-location-options label {
+  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 10px;
+  border: 1px solid var(--line); border-radius: 12px; background: #fff; cursor: pointer;
+}
+.order-location-options label:has(input:checked) { color: #fff; border-color: var(--sea); background: var(--sea); }
+.order-location-options input { width: 17px; height: 17px; margin: 0; accent-color: var(--sun); }
 .field-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .field-card-heading > span { font-family: Georgia, serif; font-size: 19px; }
 .diet-summary { display: flex; flex-wrap: wrap; gap: 7px; min-height: 37px; margin-top: 14px; }
@@ -225,7 +235,7 @@ h3 { font-size: 23px; }
 .report-toolbar { align-items: end; }
 .report-toolbar label { min-width: 170px; margin-left: auto; }
 .report-toolbar input { margin-bottom: 0; }
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
+.stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 22px 0; }
 .stat {
   padding: 17px; background: var(--white); border: 1px solid var(--line); border-radius: 16px;
 }
@@ -246,6 +256,12 @@ td.qty { text-align: right; font-weight: 800; color: var(--sea); white-space: no
 .boat-card summary { list-style: none; display: flex; justify-content: space-between; padding: 14px; cursor: pointer; background: #faf9f4; }
 .boat-card summary::-webkit-details-marker { display: none; }
 .boat-card .boat-body { padding: 14px; border-top: 1px solid var(--line); }
+.location-badge {
+  display: inline-flex; margin-bottom: 12px; padding: 7px 10px; border-radius: 999px;
+  color: #fff; background: var(--sea); font-size: 12px; font-weight: 800;
+}
+.location-badge.zofiowka { color: #5c4710; background: var(--sun); }
+.location-badge.unknown { color: var(--muted); background: #eceee9; }
 .boat-body ul { margin: 0; padding-left: 20px; columns: 2; }
 .boat-body li { margin-bottom: 7px; break-inside: avoid; }
 .boat-note { margin-top: 12px; padding: 10px; background: #fff5db; border-radius: 9px; font-size: 12px; white-space: pre-wrap; }
@@ -362,6 +378,7 @@ footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px
   .diet-label { grid-column: 2; }
   .diet-count { grid-column: 3; width: 64px; }
   .diet-description { grid-column: 2 / 4; }
+  .order-location-options { grid-template-columns: 1fr; }
   .boat-type-options { grid-template-columns: 1fr; }
   .crew-count-grid { grid-template-columns: repeat(3, 1fr); }
   .crew-count-grid label { font-size: 11px; }

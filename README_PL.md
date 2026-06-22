@@ -11,6 +11,8 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - obowiązkowy typ jachtu (rekreacyjny lub szkoleniowy) oraz liczebność załogi z podziałem na kobiety i mężczyzn;
 - możliwość późniejszej edycji diet oraz specjalne prośby w zamówieniu;
 - przycisk **Nowy turnus**, który bez tworzenia nowego konta zmienia jacht i profil diet załogi;
+- obowiązkowy wybór miejsca przy zamówieniu: **W Rejsie** albo **W Zofiówce**;
+- panel zaopatrzeniowca pokazujący miejsce każdego jachtu i łączną liczbę osób na aktywnych jachtach;
 - jedno zamówienie jachtu na następny dzień, z możliwością poprawiania do 21:00;
 - blokada po 21:00 egzekwowana również w bazie danych;
 - panel zaopatrzeniowca: suma produktów, rozpiska na jachty, brakujące zamówienia;

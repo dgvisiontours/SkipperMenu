@@ -22,6 +22,7 @@ const state = {
 const DEMO_REPORT = {
   target_date: tomorrowDate(),
   total_boats: 8,
+  total_people: 58,
   submitted_boats: 6,
   missing_boats: ["Mewa", "Perkoz"],
   consolidated: [
@@ -34,12 +35,12 @@ const DEMO_REPORT = {
     { product_name: "Mleko", unit: "l", total_quantity: 4, boats: ["Bajka: 1", "Czapla: 2", "Foka: 1"] },
   ],
   boats: [
-    { boat_name: "Bajka", skipper_name: "Maciek", submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "Woda smakowa, bułki hot dog", breakfast_choices: ["Hot dogi śniadaniowe"], items: [["Parówki", 14, "szt."], ["Jajka", 20, "szt."], ["Mleko", 1, "l"]] },
-    { boat_name: "Bryza", skipper_name: "Kuba", submitted_at: new Date().toISOString(), diet_notes: "1 osoba bez laktozy", special_requests: "Cytryny, woda gazowana", breakfast_choices: ["Płatki z mlekiem"], items: [["Bułki kajzerki", 7, "szt."], ["Jajka", 10, "szt."], ["Banany", 4, "szt."]] },
-    { boat_name: "Czapla", skipper_name: "Oliwka", submitted_at: new Date().toISOString(), diet_notes: "2 wege", special_requests: "Kawa rozpuszczalna", breakfast_choices: ["Naleśniki"], items: [["Jajka", 13, "szt."], ["Parówki", 10, "szt."], ["Mleko", 2, "l"]] },
-    { boat_name: "Delfin", skipper_name: "Rafał", submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "", breakfast_choices: ["Owsianka/Granola z jogurtem i owocami"], items: [["Jajka", 20, "szt."], ["Banany", 7, "szt."], ["Skyr owocowy", 7, "szt."]] },
-    { boat_name: "Foka", skipper_name: "Olga", submitted_at: new Date().toISOString(), diet_notes: "1 wege", special_requests: "Brzoskwinie", breakfast_choices: ["Jajka sadzone"], items: [["Bułki kajzerki", 7, "szt."], ["Banany", 7, "szt."], ["Skyr owocowy", 7, "szt."]] },
-    { boat_name: "Goplana", skipper_name: "Krzysiu", submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "Kawa rozpuszczalna", breakfast_choices: ["Jajecznica"], items: [["Bułki kajzerki", 7, "szt."], ["Awokado", 2, "szt."], ["Mleko", 1, "l"]] },
+    { boat_name: "Bajka", skipper_name: "Maciek", location: "cruise", crew_profile: { total: 8 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "Woda smakowa, bułki hot dog", items: [["Parówki", 14, "szt."], ["Jajka", 20, "szt."], ["Mleko", 1, "l"]] },
+    { boat_name: "Bryza", skipper_name: "Kuba", location: "zofiowka", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "1 osoba bez laktozy", special_requests: "Cytryny, woda gazowana", items: [["Bułki kajzerki", 7, "szt."], ["Jajka", 10, "szt."], ["Banany", 4, "szt."]] },
+    { boat_name: "Czapla", skipper_name: "Oliwka", location: "cruise", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "2 wege", special_requests: "Kawa rozpuszczalna", items: [["Jajka", 13, "szt."], ["Parówki", 10, "szt."], ["Mleko", 2, "l"]] },
+    { boat_name: "Delfin", skipper_name: "Rafał", location: "cruise", crew_profile: { total: 8 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "", items: [["Jajka", 20, "szt."], ["Banany", 7, "szt."], ["Skyr owocowy", 7, "szt."]] },
+    { boat_name: "Foka", skipper_name: "Olga", location: "zofiowka", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "1 wege", special_requests: "Brzoskwinie", items: [["Bułki kajzerki", 7, "szt."], ["Banany", 7, "szt."], ["Skyr owocowy", 7, "szt."]] },
+    { boat_name: "Goplana", skipper_name: "Krzysiu", location: "cruise", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "Kawa rozpuszczalna", items: [["Bułki kajzerki", 7, "szt."], ["Awokado", 2, "szt."], ["Mleko", 1, "l"]] },
   ],
 };
 
@@ -476,6 +477,7 @@ async function saveDietPreferences(event) {
       state.profile.boats.crew_profile = result.crew_profile;
       state.quantities.clear();
       $("#specialRequests").value = "";
+      $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
       $("#userLabel").textContent = `${state.profile.full_name} · ${result.boat_name}`;
       $("#heroSubtitle").textContent = `${result.boat_name} · wydanie ${formatDate(tomorrowDate())}`;
       renderProducts();
@@ -613,19 +615,23 @@ function updateOrderSummary() {
 
 async function loadMyOrder() {
   state.quantities.clear();
+  $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
   if (state.demo) {
     [["demo-34", 20], ["demo-5", 7], ["demo-64", 8], ["demo-47", 2]].forEach(([id, qty]) => state.quantities.set(id, qty));
     $("#specialRequests").value = "Zgrzewka wody gazowanej";
+    $('input[name="orderLocation"][value="cruise"]').checked = true;
     state.dirty = false;
     renderProducts();
     return;
   }
   try {
-    const rows = await api(`/rest/v1/orders?select=id,special_requests,submitted_at,order_items(product_id,quantity)&target_date=eq.${tomorrowDate()}&limit=1`);
+    const rows = await api(`/rest/v1/orders?select=id,special_requests,location,submitted_at,order_items(product_id,quantity)&target_date=eq.${tomorrowDate()}&limit=1`);
     const order = rows[0];
     if (order) {
       order.order_items.forEach((item) => state.quantities.set(item.product_id, Number(item.quantity)));
       $("#specialRequests").value = order.special_requests || "";
+      const locationInput = $(`input[name="orderLocation"][value="${order.location || ""}"]`);
+      if (locationInput) locationInput.checked = true;
     }
     state.dirty = false;
     renderProducts();
@@ -645,12 +651,19 @@ async function submitOrder() {
     return;
   }
   const items = [...state.quantities].map(([product_id, quantity]) => ({ product_id, quantity }));
+  const location = $('input[name="orderLocation"]:checked')?.value;
+  if (!location) {
+    toast("Wybierz: W Rejsie albo W Zofiówce.", true);
+    $(".location-card").scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
   const payload = {
     p_target_date: tomorrowDate(),
     p_diet_notes: dietPreferencesText(),
     p_special_requests: $("#specialRequests").value.trim(),
     p_breakfast_choices: [],
     p_items: items,
+    p_location: location,
   };
   const button = $("#submitOrderButton");
   button.disabled = true;
@@ -688,6 +701,7 @@ function renderReport() {
   $("#reportStats").innerHTML = [
     [report.submitted_boats || 0, "Jachty z zamówieniem"],
     [report.total_boats || 0, "Wszystkie aktywne jachty"],
+    [report.total_people || 0, "Osoby na jachtach"],
     [productsCount, "Różne produkty"],
     [formatNumber(itemSum), "Łączna liczba jednostek"],
   ].map(([value, label]) => `<div class="stat"><strong>${value}</strong><span>${label}</span></div>`).join("");
@@ -706,8 +720,13 @@ function renderReport() {
   const missing = report.missing_boats || [];
   $("#boatPackages").innerHTML = [
     ...((report.boats || []).map((boat) => `<details class="boat-card" open>
-      <summary><strong>${escapeHtml(boat.boat_name)}</strong><span>${escapeHtml(boat.skipper_name || "")} · ${boat.items?.length || 0} pozycji</span></summary>
+      <summary><strong>${escapeHtml(boat.boat_name)}</strong><span>${escapeHtml(boat.skipper_name || "")} · ${boat.crew_profile?.total || 0} osób · ${boat.items?.length || 0} pozycji</span></summary>
       <div class="boat-body">
+        <div class="location-badge ${boat.location || "unknown"}">${
+          boat.location === "zofiowka" ? "W Zofiówce"
+            : boat.location === "cruise" ? "W Rejsie"
+              : "Brak informacji o miejscu"
+        }</div>
         <ul>${(boat.items || []).map(([name, qty, unit]) => `<li>${escapeHtml(name)} — <strong>${formatNumber(qty)} ${escapeHtml(unit)}</strong></li>`).join("")}</ul>
         ${boat.diet_notes ? `<div class="boat-note"><strong>Diety:</strong> ${escapeHtml(boat.diet_notes)}</div>` : ""}
         ${boat.special_requests ? `<div class="boat-note"><strong>Specjalne:</strong> ${escapeHtml(boat.special_requests)}</div>` : ""}
@@ -761,6 +780,10 @@ function bindEvents() {
   $("#exportCsvButton").addEventListener("click", exportCsv);
   $("#printButton").addEventListener("click", () => window.print());
   ["#specialRequests"].forEach((selector) => $(selector).addEventListener("input", () => {
+    state.dirty = true;
+    updateOrderSummary();
+  }));
+  $$('input[name="orderLocation"]').forEach((input) => input.addEventListener("change", () => {
     state.dirty = true;
     updateOrderSummary();
   }));

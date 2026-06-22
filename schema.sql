@@ -46,12 +46,18 @@ create table if not exists public.orders (
   target_date date not null,
   diet_notes text not null default '',
   special_requests text not null default '',
+  location text check (location in ('cruise', 'zofiowka')),
   breakfast_choices text[] not null default '{}',
   submitted_by uuid not null references public.profiles(id),
   submitted_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (boat_id, target_date)
 );
+
+alter table public.orders add column if not exists location text;
+alter table public.orders drop constraint if exists orders_location_check;
+alter table public.orders add constraint orders_location_check
+  check (location is null or location in ('cruise', 'zofiowka'));
 
 create table if not exists public.order_items (
   order_id uuid not null references public.orders(id) on delete cascade,
@@ -378,12 +384,15 @@ end;
 $$;
 
 -- Zapisy odbywają się wyłącznie przez tę funkcję. Deadline jest sprawdzany po stronie serwera.
+drop function if exists public.submit_order(date,text,text,text[],jsonb);
+
 create or replace function public.submit_order(
   p_target_date date,
   p_diet_notes text,
   p_special_requests text,
   p_breakfast_choices text[],
-  p_items jsonb
+  p_items jsonb,
+  p_location text
 ) returns uuid
 language plpgsql security definer
 set search_path = public
@@ -405,6 +414,9 @@ begin
   if v_diet_preferences is null or v_crew_profile is null then
     raise exception 'Najpierw uzupełnij profil jachtu i załogi.';
   end if;
+  if p_location not in ('cruise', 'zofiowka') then
+    raise exception 'Wybierz, czy jacht jest W Rejsie, czy W Zofiówce.';
+  end if;
 
   v_local_now := now() at time zone 'Europe/Warsaw';
   if v_role = 'skipper' then
@@ -417,15 +429,17 @@ begin
   end if;
 
   insert into public.orders (
-    boat_id, target_date, diet_notes, special_requests, breakfast_choices,
+    boat_id, target_date, diet_notes, special_requests, location, breakfast_choices,
     submitted_by, submitted_at, updated_at
   ) values (
     v_boat_id, p_target_date, public.diet_preferences_to_text(v_diet_preferences), coalesce(p_special_requests,''),
+    p_location,
     coalesce(p_breakfast_choices,'{}'), auth.uid(), now(), now()
   )
   on conflict (boat_id, target_date) do update set
     diet_notes = excluded.diet_notes,
     special_requests = excluded.special_requests,
+    location = excluded.location,
     breakfast_choices = excluded.breakfast_choices,
     submitted_by = excluded.submitted_by,
     submitted_at = now(),
@@ -459,6 +473,10 @@ begin
   select jsonb_build_object(
     'target_date', p_target_date,
     'total_boats', (select count(*) from public.boats where active),
+    'total_people', coalesce((
+      select sum(coalesce((crew_profile->>'total')::integer, 0))
+      from public.boats where active
+    ), 0),
     'submitted_boats', (select count(*) from public.orders where target_date = p_target_date),
     'missing_boats', coalesce((
       select jsonb_agg(b.name order by b.name)
@@ -490,6 +508,8 @@ begin
           'boat_name', b.name,
           'skipper_name', pr.full_name,
           'submitted_at', o.submitted_at,
+          'location', o.location,
+          'crew_profile', b.crew_profile,
           'diet_notes', o.diet_notes,
           'special_requests', o.special_requests,
           'breakfast_choices', o.breakfast_choices,
@@ -511,7 +531,7 @@ begin
 end;
 $$;
 
-grant execute on function public.submit_order(date,text,text,text[],jsonb) to authenticated;
+grant execute on function public.submit_order(date,text,text,text[],jsonb,text) to authenticated;
 grant execute on function public.get_supplier_report(date) to authenticated;
 grant execute on function public.save_diet_preferences(jsonb) to authenticated;
 grant execute on function public.save_crew_profile(jsonb,jsonb) to authenticated;
