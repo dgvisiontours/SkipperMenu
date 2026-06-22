@@ -57,6 +57,13 @@ export const CONFIG = {
 };
 ```
 
+Ważne: `SUPABASE_URL` musi kończyć się na `.supabase.co`. Nie dopisuj
+`/rest/v1`, `/auth/v1` ani końcowego ukośnika. Poprawny przykład:
+
+```text
+https://abcdefgh.supabase.co
+```
+
 ### 3. Opublikuj aplikację na Netlify
 
 Najprościej:

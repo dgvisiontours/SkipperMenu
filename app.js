@@ -57,6 +57,13 @@ function configured() {
   return !CONFIG.SUPABASE_URL.includes("TWOJ-PROJEKT") && !CONFIG.SUPABASE_ANON_KEY.includes("TU_WKLEJ");
 }
 
+function supabaseBaseUrl() {
+  return CONFIG.SUPABASE_URL
+    .trim()
+    .replace(/\/+(?:rest|auth)\/v1\/?$/i, "")
+    .replace(/\/+$/, "");
+}
+
 function localParts(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: CONFIG.TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit",
@@ -89,7 +96,7 @@ function formatDate(dateString) {
 
 async function api(path, { method = "GET", body, auth = true, headers = {} } = {}) {
   if (!state.session && auth) throw new Error("Sesja wygasła. Zaloguj się ponownie.");
-  const response = await fetch(`${CONFIG.SUPABASE_URL}${path}`, {
+  const response = await fetch(`${supabaseBaseUrl()}/${path.replace(/^\/+/, "")}`, {
     method,
     headers: {
       apikey: CONFIG.SUPABASE_ANON_KEY,
