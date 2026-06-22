@@ -1,5 +1,5 @@
-const CACHE = "paszowoz-v11";
-const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./catalog.js", "./config.js", "./manifest.webmanifest", "./icon.svg"];
+const CACHE = "paszowoz-v12";
+const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./catalog.js", "./config.js", "./manifest.webmanifest", "./icon.svg", "./logo-bluebag.svg"];
 
 self.addEventListener("install", (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS))));
 self.addEventListener("activate", (event) => event.waitUntil(

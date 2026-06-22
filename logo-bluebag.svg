@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Paszowóz — torba Bluebag</title>
+  <path d="M31 45h66l8 70H23l8-70Z" fill="#43b8e5"/>
+  <path d="M45 48V35c0-14 8-23 19-23s19 9 19 23v13" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M29 45h70l2 17H27l2-17Z" fill="#17354d" opacity=".2"/>
+  <path d="M39 69h12L44 81l7 12H39l7-12-7-12Zm19 0h12l-7 12 7 12H58l7-12-7-12Z" fill="#fff"/>
+  <path d="M78 69h16v24H78V69Zm5 5v14h6V74h-6Z" fill="#e50067"/>
+  <path d="M30 105h68" stroke="#ffc400" stroke-width="6" stroke-linecap="round" stroke-dasharray="7 7"/>
+</svg>

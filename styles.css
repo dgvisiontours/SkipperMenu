@@ -44,13 +44,11 @@ button { cursor: pointer; }
 }
 .brand { display: flex; gap: 10px; align-items: center; color: #fff; text-decoration: none; }
 .brand-mark {
-  width: 38px; height: 42px; display: grid; place-items: center;
-  color: var(--sea); background: #fff; clip-path: polygon(0 0, 100% 0, 70% 50%, 100% 100%, 0 100%, 30% 50%);
-  font: 1000 27px/1 Arial, sans-serif;
+  width: 48px; height: 48px; display: block; object-fit: contain;
 }
 .brand strong, .brand small { display: block; }
 .brand strong { font: 900 22px/1 Arial, sans-serif; letter-spacing: -.04em; text-transform: uppercase; }
-.brand small { margin-top: 4px; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; opacity: .82; }
+.brand small { margin-top: 4px; color: #fff; font-size: 9px; font-weight: 700; letter-spacing: .045em; opacity: .88; }
 .user-menu { display: flex; align-items: center; gap: 12px; color: #fff; font-size: 13px; }
 .topbar .button.secondary, .topbar .button.ghost { color: #fff; border-color: rgba(255,255,255,.55); background: rgba(255,255,255,.1); }
 
