@@ -241,6 +241,7 @@ h3 { font-size: 23px; }
 }
 .stat strong { display: block; font: 700 30px Georgia, serif; color: var(--sea); }
 .stat span { color: var(--muted); font-size: 12px; }
+.missing-stat small { display: block; margin-top: 6px; color: #9b4034; font-size: 11px; line-height: 1.35; }
 .diet-report-card {
   display: flex; align-items: center; justify-content: space-between; gap: 22px;
   padding: 18px; margin-bottom: 22px; background: var(--white); border: 1px solid var(--line); border-radius: 17px;
@@ -259,6 +260,12 @@ h3 { font-size: 23px; }
 .report-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; }
 .report-card { overflow: hidden; box-shadow: none; }
 .card-heading { padding: 20px; border-bottom: 1px solid var(--line); }
+.toggle-heading {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 16px;
+  color: inherit; background: transparent; border-width: 0 0 1px; text-align: left; cursor: pointer;
+}
+.toggle-heading:hover { background: #f5f6f1; }
+.toggle-heading > span { color: var(--sea); font-size: 12px; font-weight: 800; white-space: nowrap; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { padding: 12px 14px; border-bottom: 1px solid #e5e8e3; text-align: left; }

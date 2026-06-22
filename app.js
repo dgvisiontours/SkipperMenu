@@ -252,7 +252,7 @@ function updateDeadline() {
     ? `Zamówienia otwierają się o ${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00`
     : windowState === "after"
       ? "Przyjmowanie zamówień zakończone"
-      : "Zamówienia są otwarte · czas warszawski";
+      : "Zamówienia są otwarte";
   $("#submitOrderButton").disabled = closed && state.profile.role === "skipper";
   $("#submitHeadline").textContent = windowState === "before"
     ? `Zamówienia można zmieniać od ${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00`
@@ -728,13 +728,18 @@ async function loadReport() {
 
 function renderReport() {
   const report = state.report || { consolidated: [], boats: [], missing_boats: [] };
-  const productsCount = report.consolidated?.length || 0;
-  $("#reportStats").innerHTML = [
+  const missing = report.missing_boats || [];
+  const standardStats = [
     [report.submitted_boats || 0, "Jachty z zamówieniem"],
     [report.total_boats || 0, "Wszystkie aktywne jachty"],
     [report.total_people || 0, "Osoby na jachtach"],
-    [productsCount, "Różne produkty"],
   ].map(([value, label]) => `<div class="stat"><strong>${value}</strong><span>${label}</span></div>`).join("");
+  $("#reportStats").innerHTML = `${standardStats}
+    <div class="stat missing-stat">
+      <strong>${missing.length}</strong>
+      <span>Jachty bez zamówienia</span>
+      <small>${missing.length ? escapeHtml(missing.join(", ")) : "Wszystkie jachty złożyły zamówienie"}</small>
+    </div>`;
   const dietTotals = report.diet_totals || [];
   $("#dietReportSummary").innerHTML = dietTotals.length
     ? dietTotals.map((diet) => `<div class="diet-total"><strong>${formatNumber(diet.count)}</strong><span>${escapeHtml(diet.label)}</span></div>`).join("")
@@ -743,15 +748,13 @@ function renderReport() {
   const query = $("#reportSearch").value.trim().toLocaleLowerCase("pl");
   const consolidated = (report.consolidated || []).filter((item) => item.product_name.toLocaleLowerCase("pl").includes(query));
   $("#consolidatedList").innerHTML = consolidated.length ? `<table>
-    <thead><tr><th>Produkt</th><th>Rozpiska</th><th>Ilość</th></tr></thead>
+    <thead><tr><th>Produkt</th><th>Ilość całkowita</th></tr></thead>
     <tbody>${consolidated.map((item) => `<tr>
       <td><strong>${escapeHtml(item.product_name)}</strong></td>
-      <td>${escapeHtml((item.boats || []).join(" · "))}</td>
       <td class="qty">${formatNumber(item.total_quantity)} ${escapeHtml(item.unit)}</td>
     </tr>`).join("")}</tbody>
   </table>` : `<div class="empty">Brak pozycji dla wybranego dnia.</div>`;
 
-  const missing = report.missing_boats || [];
   $("#boatPackages").innerHTML = [
     ...((report.boats || []).map((boat) => `<details class="boat-card" open>
       <summary><strong>${escapeHtml(boat.boat_name)}</strong><span>${escapeHtml(boat.skipper_name || "")} · ${boat.crew_profile?.total || 0} osób · ${boat.items?.length || 0} pozycji</span></summary>
@@ -766,14 +769,15 @@ function renderReport() {
         ${boat.special_requests ? `<div class="boat-note"><strong>Specjalne:</strong> ${escapeHtml(boat.special_requests)}</div>` : ""}
       </div>
     </details>`)),
-    ...(missing.length ? [`<div class="boat-note missing"><strong>Brak zamówienia:</strong> ${escapeHtml(missing.join(", "))}</div>`] : []),
   ].join("") || `<div class="empty">Żaden jacht jeszcze nie wysłał zamówienia.</div>`;
+  $("#toggleBoatPackagesButton").setAttribute("aria-expanded", "true");
+  $("#toggleBoatPackagesLabel").textContent = "Zwiń wszystkie";
 }
 
 function exportCsv() {
   if (!state.report) return;
-  const rows = [["Produkt", "Ilość", "Jednostka", "Jachty"]];
-  state.report.consolidated.forEach((item) => rows.push([item.product_name, item.total_quantity, item.unit, (item.boats || []).join("; ")]));
+  const rows = [["Produkt", "Ilość całkowita", "Jednostka"]];
+  state.report.consolidated.forEach((item) => rows.push([item.product_name, item.total_quantity, item.unit]));
   const csv = "\ufeff" + rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\r\n");
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -802,6 +806,13 @@ function bindEvents() {
   $("#reportSearch").addEventListener("input", renderReport);
   $("#refreshReportButton").addEventListener("click", loadReport);
   $("#reportDate").addEventListener("change", loadReport);
+  $("#toggleBoatPackagesButton").addEventListener("click", () => {
+    const boatCards = $$("#boatPackages .boat-card");
+    const shouldOpen = boatCards.some((card) => !card.open);
+    boatCards.forEach((card) => { card.open = shouldOpen; });
+    $("#toggleBoatPackagesButton").setAttribute("aria-expanded", String(shouldOpen));
+    $("#toggleBoatPackagesLabel").textContent = shouldOpen ? "Zwiń wszystkie" : "Rozwiń wszystkie";
+  });
   $("#submitOrderButton").addEventListener("click", submitOrder);
   $("#editDietsButton").addEventListener("click", () => openDietModal(false));
   $("#newTurnusButton").addEventListener("click", openNewTurnusModal);

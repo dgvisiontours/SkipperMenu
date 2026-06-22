@@ -194,14 +194,15 @@
           <div class="report-grid">
             <article class="report-card">
               <div class="card-heading">
-                <div><span class="section-kicker">Zakupy</span><h3>Lista skonsolidowana</h3></div>
+                <div><span class="section-kicker">Zakupy</span><h3>Lista zaopatrzeniowa</h3></div>
               </div>
               <div id="consolidatedList" class="table-wrap"></div>
             </article>
             <article class="report-card">
-              <div class="card-heading">
+              <button id="toggleBoatPackagesButton" class="card-heading toggle-heading" type="button" aria-expanded="true">
                 <div><span class="section-kicker">Pakowanie</span><h3>Paczki dla jachtów</h3></div>
-              </div>
+                <span id="toggleBoatPackagesLabel">Zwiń wszystkie</span>
+              </button>
               <div id="boatPackages" class="boat-packages"></div>
             </article>
           </div>
