@@ -6,7 +6,8 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 
 - katalog 68 produktów odczytanych z pliku Excel;
 - ilości, kategorie, wyszukiwarka oraz jednostki;
-- pomysły na śniadanie, diety/alergie i specjalne prośby;
+- osobna baza śniadań z przepisami, składnikami i wskazówkami do przygotowania na jachcie;
+- diety/alergie i specjalne prośby w zamówieniu;
 - jedno zamówienie jachtu na następny dzień, z możliwością poprawiania do 18:00;
 - blokada po 18:00 egzekwowana również w bazie danych;
 - panel zaopatrzeniowca: suma produktów, rozpiska na jachty, brakujące zamówienia;

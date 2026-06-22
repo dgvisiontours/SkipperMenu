@@ -110,11 +110,6 @@
 
           <div class="notes-grid">
             <label class="field-card">
-              <span>Pomysł na śniadanie</span>
-              <select id="breakfastSelect" multiple size="5"></select>
-              <small>Możesz zaznaczyć kilka propozycji.</small>
-            </label>
-            <label class="field-card">
               <span>Diety i alergie</span>
               <textarea id="dietNotes" rows="5" placeholder="np. 2 wege, 1 bez laktozy"></textarea>
             </label>
@@ -131,6 +126,22 @@
             </div>
             <button id="submitOrderButton" class="button primary">Zapisz zamówienie</button>
           </div>
+        </section>
+
+        <section id="breakfastPanel" class="panel hidden">
+          <div class="recipe-toolbar">
+            <div>
+              <span class="section-kicker">Kambuzowa baza wiedzy</span>
+              <h2>Śniadania na jachcie</h2>
+              <p>Proste przepisy, składniki i wskazówki dla załogi.</p>
+            </div>
+            <label class="search-box">
+              <span>⌕</span>
+              <input id="recipeSearch" type="search" placeholder="Szukaj przepisu lub składnika…" />
+            </label>
+          </div>
+          <div id="recipeFilters" class="chips recipe-filters"></div>
+          <div id="recipeList" class="recipe-list"></div>
         </section>
 
         <section id="supplierPanel" class="panel hidden">

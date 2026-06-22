@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { BREAKFAST_IDEAS, PRODUCTS as FALLBACK_PRODUCTS } from "./catalog.js";
+import { BREAKFAST_RECIPES, PRODUCTS as FALLBACK_PRODUCTS } from "./catalog.js";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -10,6 +10,7 @@ const state = {
   products: [],
   quantities: new Map(),
   activeCategory: "Wszystkie",
+  activeRecipeCategory: "Wszystkie",
   activePanel: "skipper",
   report: null,
   demo: false,
@@ -166,6 +167,8 @@ function openApp() {
   $("#userLabel").textContent = `${state.profile.full_name} · ${state.profile.boats?.name || roleName(state.profile.role)}`;
   renderNavigation();
   setupOrderPanel();
+  renderRecipeFilters();
+  renderRecipes();
   updateDeadline();
   const role = state.profile.role;
   switchPanel(role === "supplier" ? "supplier" : "skipper");
@@ -181,6 +184,7 @@ function renderNavigation() {
   const canReport = ["supplier", "admin"].includes(state.profile.role);
   nav.innerHTML = [
     canOrder ? `<button data-panel="skipper">Zamówienie jachtu</button>` : "",
+    `<button data-panel="breakfast">Baza śniadań</button>`,
     canReport ? `<button data-panel="supplier">Raport zaopatrzenia</button>` : "",
   ].join("");
   nav.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => switchPanel(button.dataset.panel)));
@@ -189,13 +193,20 @@ function renderNavigation() {
 function switchPanel(panel) {
   state.activePanel = panel;
   $("#skipperPanel").classList.toggle("hidden", panel !== "skipper");
+  $("#breakfastPanel").classList.toggle("hidden", panel !== "breakfast");
   $("#supplierPanel").classList.toggle("hidden", panel !== "supplier");
+  $("#deadlineCard").classList.toggle("hidden", panel === "breakfast");
   $$("#appNav button").forEach((button) => button.classList.toggle("active", button.dataset.panel === panel));
   if (panel === "skipper") {
     $("#roleEyebrow").textContent = "Panel sternika";
     $("#heroTitle").textContent = "Zamówienie na jutro";
     $("#heroSubtitle").textContent = `${state.profile.boats?.name || "Twój jacht"} · wydanie ${formatDate(tomorrowDate())}`;
     loadMyOrder();
+  } else if (panel === "breakfast") {
+    $("#roleEyebrow").textContent = "Baza śniadań";
+    $("#heroTitle").textContent = "Pomysły do jachtowego kambuzu";
+    $("#heroSubtitle").textContent = "Przepisy stworzone z myślą o małej kuchni, jednej patelni i głodnej załodze.";
+    renderRecipes();
   } else {
     $("#roleEyebrow").textContent = "Panel zaopatrzeniowca";
     $("#heroTitle").textContent = "Jedna lista. Cała flotylla.";
@@ -215,9 +226,55 @@ function updateDeadline() {
 }
 
 function setupOrderPanel() {
-  $("#breakfastSelect").innerHTML = BREAKFAST_IDEAS.map((idea) => `<option>${escapeHtml(idea)}</option>`).join("");
   renderCategoryFilters();
   renderProducts();
+}
+
+function renderRecipeFilters() {
+  const categories = ["Wszystkie", ...new Set(BREAKFAST_RECIPES.map((recipe) => recipe.category))];
+  $("#recipeFilters").innerHTML = categories.map((category) =>
+    `<button class="chip ${category === state.activeRecipeCategory ? "active" : ""}" data-recipe-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`
+  ).join("");
+  $$("#recipeFilters button").forEach((button) => button.addEventListener("click", () => {
+    state.activeRecipeCategory = button.dataset.recipeCategory;
+    renderRecipeFilters();
+    renderRecipes();
+  }));
+}
+
+function renderRecipes() {
+  const query = $("#recipeSearch").value.trim().toLocaleLowerCase("pl");
+  const recipes = BREAKFAST_RECIPES.filter((recipe) => {
+    const searchable = [recipe.name, recipe.category, ...recipe.ingredients].join(" ").toLocaleLowerCase("pl");
+    return (state.activeRecipeCategory === "Wszystkie" || recipe.category === state.activeRecipeCategory)
+      && searchable.includes(query);
+  });
+  $("#recipeList").innerHTML = recipes.length ? recipes.map((recipe, index) => `
+    <details class="recipe-card" ${index === 0 && !query ? "open" : ""}>
+      <summary>
+        <div>
+          <span class="recipe-category">${escapeHtml(recipe.category)}</span>
+          <h3>${escapeHtml(recipe.name)}</h3>
+        </div>
+        <div class="recipe-meta">
+          <span>${escapeHtml(recipe.time)}</span>
+          <span>${escapeHtml(recipe.difficulty)}</span>
+          <b aria-hidden="true">+</b>
+        </div>
+      </summary>
+      <div class="recipe-body">
+        <section>
+          <h4>Składniki</h4>
+          <ul>${recipe.ingredients.map((ingredient) => `<li>${escapeHtml(ingredient)}</li>`).join("")}</ul>
+        </section>
+        <section>
+          <h4>Przygotowanie</h4>
+          <ol>${recipe.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
+        </section>
+        <aside><strong>Wskazówka na jacht:</strong> ${escapeHtml(recipe.tip)}</aside>
+      </div>
+    </details>
+  `).join("") : `<div class="empty">Nie znaleziono takiego przepisu ani składnika.</div>`;
 }
 
 function renderCategoryFilters() {
@@ -286,19 +343,17 @@ async function loadMyOrder() {
     [["demo-34", 20], ["demo-5", 7], ["demo-64", 8], ["demo-47", 2]].forEach(([id, qty]) => state.quantities.set(id, qty));
     $("#dietNotes").value = "1 osoba bez laktozy";
     $("#specialRequests").value = "Zgrzewka wody gazowanej";
-    [...$("#breakfastSelect").options].forEach((option) => option.selected = option.value === "Jajecznica");
     state.dirty = false;
     renderProducts();
     return;
   }
   try {
-    const rows = await api(`/rest/v1/orders?select=id,diet_notes,special_requests,breakfast_choices,submitted_at,order_items(product_id,quantity)&target_date=eq.${tomorrowDate()}&limit=1`);
+    const rows = await api(`/rest/v1/orders?select=id,diet_notes,special_requests,submitted_at,order_items(product_id,quantity)&target_date=eq.${tomorrowDate()}&limit=1`);
     const order = rows[0];
     if (order) {
       order.order_items.forEach((item) => state.quantities.set(item.product_id, Number(item.quantity)));
       $("#dietNotes").value = order.diet_notes || "";
       $("#specialRequests").value = order.special_requests || "";
-      [...$("#breakfastSelect").options].forEach((option) => option.selected = (order.breakfast_choices || []).includes(option.value));
     }
     state.dirty = false;
     renderProducts();
@@ -317,7 +372,7 @@ async function submitOrder() {
     p_target_date: tomorrowDate(),
     p_diet_notes: $("#dietNotes").value.trim(),
     p_special_requests: $("#specialRequests").value.trim(),
-    p_breakfast_choices: [...$("#breakfastSelect").selectedOptions].map((option) => option.value),
+    p_breakfast_choices: [],
     p_items: items,
   };
   const button = $("#submitOrderButton");
@@ -377,7 +432,6 @@ function renderReport() {
       <summary><strong>${escapeHtml(boat.boat_name)}</strong><span>${escapeHtml(boat.skipper_name || "")} · ${boat.items?.length || 0} pozycji</span></summary>
       <div class="boat-body">
         <ul>${(boat.items || []).map(([name, qty, unit]) => `<li>${escapeHtml(name)} — <strong>${formatNumber(qty)} ${escapeHtml(unit)}</strong></li>`).join("")}</ul>
-        ${boat.breakfast_choices?.length ? `<div class="boat-note"><strong>Śniadanie:</strong> ${escapeHtml(boat.breakfast_choices.join(", "))}</div>` : ""}
         ${boat.diet_notes ? `<div class="boat-note"><strong>Diety:</strong> ${escapeHtml(boat.diet_notes)}</div>` : ""}
         ${boat.special_requests ? `<div class="boat-note"><strong>Specjalne:</strong> ${escapeHtml(boat.special_requests)}</div>` : ""}
       </div>
@@ -414,13 +468,14 @@ function bindEvents() {
   }));
   $("#enterDemoButton").addEventListener("click", enterDemo);
   $("#productSearch").addEventListener("input", renderProducts);
+  $("#recipeSearch").addEventListener("input", renderRecipes);
   $("#reportSearch").addEventListener("input", renderReport);
   $("#refreshReportButton").addEventListener("click", loadReport);
   $("#reportDate").addEventListener("change", loadReport);
   $("#submitOrderButton").addEventListener("click", submitOrder);
   $("#exportCsvButton").addEventListener("click", exportCsv);
   $("#printButton").addEventListener("click", () => window.print());
-  ["#dietNotes", "#specialRequests", "#breakfastSelect"].forEach((selector) => $(selector).addEventListener("input", () => {
+  ["#dietNotes", "#specialRequests"].forEach((selector) => $(selector).addEventListener("input", () => {
     state.dirty = true;
     updateOrderSummary();
   }));

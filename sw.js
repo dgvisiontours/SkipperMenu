@@ -1,4 +1,4 @@
-const CACHE = "proviant-v2";
+const CACHE = "proviant-v3";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./catalog.js", "./config.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS))));

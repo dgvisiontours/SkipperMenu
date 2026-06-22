@@ -1,9 +1,100 @@
-export const BREAKFAST_IDEAS = [
-  "Jajecznica", "Jajka sadzone", "Pasta jajeczna", "Omlety", "Tosty francuskie",
-  "Płatki z mlekiem", "Owsianka/Granola z jogurtem i owocami", "Szakszuka",
-  "Tosty z patelni", "Parówki", "Hot dogi śniadaniowe", "Naleśniki",
-  "Quesadilla z patelni", "Twarożek z rzodkiewką i szczypiorkiem",
-  "Serek wiejski z dodatkami", "Guacamole",
+export const BREAKFAST_RECIPES = [
+  {
+    name: "Jajecznica", category: "Na ciepło", time: "15 min", difficulty: "łatwe",
+    ingredients: ["2–3 jajka na osobę", "masło lub olej", "sól i pieprz", "opcjonalnie: szczypiorek, boczek, pomidory"],
+    steps: ["Rozgrzej patelnię na małym ogniu i dodaj tłuszcz.", "Roztrzep jajka z solą i pieprzem.", "Wlej jajka i mieszaj powoli, aż się zetną, ale pozostaną kremowe.", "Dodatki podsmaż wcześniej lub dodaj pod koniec."],
+    tip: "Na jednej patelni przygotuj maksymalnie porcję dla 4–5 osób — większa ilość łatwo robi się sucha.",
+  },
+  {
+    name: "Jajka sadzone", category: "Na ciepło", time: "12 min", difficulty: "łatwe",
+    ingredients: ["2 jajka na osobę", "masło lub olej", "sól i pieprz", "pieczywo"],
+    steps: ["Rozgrzej niewielką ilość tłuszczu.", "Wbij jajka tak, aby nie uszkodzić żółtek.", "Smaż pod przykryciem na małym ogniu do ścięcia białka.", "Dopraw i podawaj od razu z pieczywem."],
+    tip: "Pokrywka przyspiesza ścinanie białka i ogranicza zużycie gazu.",
+  },
+  {
+    name: "Pasta jajeczna", category: "Bez gotowania", time: "20 min", difficulty: "łatwe",
+    ingredients: ["2 jajka na 3 osoby", "majonez lub jogurt", "szczypiorek", "sól i pieprz", "pieczywo"],
+    steps: ["Ugotuj jajka na twardo przez około 9 minut.", "Ostudź, obierz i drobno posiekaj.", "Wymieszaj z majonezem lub jogurtem i szczypiorkiem.", "Dopraw i nakładaj na pieczywo."],
+    tip: "Jajka można ugotować wieczorem, co znacznie skraca poranne przygotowanie.",
+  },
+  {
+    name: "Omlet", category: "Na ciepło", time: "18 min", difficulty: "średnie",
+    ingredients: ["2–3 jajka na osobę", "łyżka mleka", "masło lub olej", "ser", "warzywa lub szynka"],
+    steps: ["Roztrzep jajka z mlekiem i przyprawami.", "Podsmaż wybrane dodatki.", "Wlej masę jajeczną i smaż pod przykryciem na małym ogniu.", "Dodaj ser, złóż omlet na pół i podgrzewaj jeszcze minutę."],
+    tip: "Cieńsze omlety łatwiej obrócić na małej jachtowej patelni.",
+  },
+  {
+    name: "Tosty francuskie", category: "Na słodko", time: "20 min", difficulty: "łatwe",
+    ingredients: ["2 kromki chleba na osobę", "1 jajko na 3–4 kromki", "mleko", "masło", "cukier i cynamon", "owoce lub dżem"],
+    steps: ["Roztrzep jajka z odrobiną mleka.", "Zanurz kromki z obu stron.", "Smaż na maśle do złotego koloru.", "Podawaj z owocami, dżemem albo cukrem z cynamonem."],
+    tip: "To dobry sposób na wykorzystanie lekko czerstwego pieczywa.",
+  },
+  {
+    name: "Płatki z mlekiem", category: "Ekspresowe", time: "5 min", difficulty: "bardzo łatwe",
+    ingredients: ["płatki kukurydziane, czekoladowe lub musli", "mleko albo napój roślinny", "opcjonalnie: banan, rodzynki"],
+    steps: ["Wsyp płatki do misek.", "Dodaj owoce lub rodzynki.", "Zalej mlekiem bezpośrednio przed podaniem."],
+    tip: "Przy dietach oznacz osobno mleko bez laktozy i napoje roślinne.",
+  },
+  {
+    name: "Owsianka z owocami", category: "Na słodko", time: "15 min", difficulty: "łatwe",
+    ingredients: ["60–80 g płatków owsianych na osobę", "mleko lub woda", "banany albo jabłka", "miód lub cukier", "cynamon"],
+    steps: ["Zagotuj mleko lub wodę.", "Wsyp płatki i gotuj 5–8 minut, mieszając.", "Dodaj pokrojone owoce.", "Dopraw miodem i cynamonem."],
+    tip: "W dużym garnku mieszaj od dna — owsianka łatwo się przypala.",
+  },
+  {
+    name: "Granola z jogurtem i owocami", category: "Ekspresowe", time: "7 min", difficulty: "bardzo łatwe",
+    ingredients: ["granola", "jogurt naturalny lub skyr", "banany, jabłka lub sezonowe owoce", "opcjonalnie: miód"],
+    steps: ["Rozdziel jogurt do misek.", "Dodaj pokrojone owoce.", "Posyp granolą tuż przed jedzeniem.", "Opcjonalnie polej miodem."],
+    tip: "Granolę dodaj na końcu, aby pozostała chrupiąca.",
+  },
+  {
+    name: "Szakszuka", category: "Na ciepło", time: "30 min", difficulty: "średnie",
+    ingredients: ["2 jajka na osobę", "passata pomidorowa", "cebula", "papryka", "olej", "sól, pieprz i papryka słodka", "pieczywo"],
+    steps: ["Podsmaż cebulę i paprykę.", "Dodaj passatę i przyprawy, gotuj około 10 minut.", "Zrób wgłębienia i wbij jajka.", "Przykryj i gotuj do ścięcia białek. Podawaj z pieczywem."],
+    tip: "Sos można przygotować wieczorem; rano wystarczy go podgrzać i wbić jajka.",
+  },
+  {
+    name: "Tosty z patelni", category: "Na ciepło", time: "20 min", difficulty: "łatwe",
+    ingredients: ["chleb tostowy", "ser w plastrach", "szynka lub warzywa", "masło"],
+    steps: ["Złóż kanapki z serem i dodatkami.", "Posmaruj zewnętrzne strony cienko masłem.", "Smaż na małym ogniu pod przykryciem.", "Obróć i dosmaż do roztopienia sera."],
+    tip: "Dociśnij tost łopatką lub drugim, czystym garnkiem.",
+  },
+  {
+    name: "Hot dogi śniadaniowe", category: "Na ciepło", time: "20 min", difficulty: "łatwe",
+    ingredients: ["bułki do hot dogów", "parówki lub parówki wege", "ser", "ogórki", "ketchup i musztarda"],
+    steps: ["Podgrzej parówki w wodzie lub na patelni.", "Natnij i ogrzej bułki.", "Włóż parówki oraz dodatki.", "Dodaj sosy bezpośrednio przed podaniem."],
+    tip: "Parówki wege podgrzewaj osobno i oznacz, aby nie pomylić paczek.",
+  },
+  {
+    name: "Naleśniki", category: "Na słodko", time: "40 min", difficulty: "średnie",
+    ingredients: ["1 szklanka mąki", "1 szklanka mleka", "1/2 szklanki wody", "2 jajka", "olej", "dżem, krem czekoladowy lub owoce"],
+    steps: ["Wymieszaj mąkę, mleko, wodę i jajka na gładkie ciasto.", "Odstaw na 10 minut, jeśli macie czas.", "Smaż cienkie naleśniki na lekko natłuszczonej patelni.", "Podawaj z wybranymi dodatkami."],
+    tip: "Podane proporcje dają około 8–10 naleśników.",
+  },
+  {
+    name: "Quesadilla z patelni", category: "Na ciepło", time: "18 min", difficulty: "łatwe",
+    ingredients: ["tortille", "tarty ser", "szynka, kukurydza lub warzywa", "opcjonalnie: salsa"],
+    steps: ["Na połowie tortilli rozłóż ser i dodatki.", "Złóż tortillę na pół.", "Smaż bez dużej ilości tłuszczu po 2–3 minuty z każdej strony.", "Pokrój na trójkąty."],
+    tip: "Nie wkładaj zbyt wielu mokrych dodatków — tortilla może się rozerwać.",
+  },
+  {
+    name: "Twarożek z rzodkiewką", category: "Bez gotowania", time: "12 min", difficulty: "bardzo łatwe",
+    ingredients: ["twaróg lub serek kanapkowy", "jogurt albo śmietana", "rzodkiewki", "szczypiorek", "sól i pieprz", "pieczywo"],
+    steps: ["Rozgnieć twaróg z jogurtem lub śmietaną.", "Pokrój rzodkiewki i szczypiorek.", "Wymieszaj wszystkie składniki.", "Dopraw i podawaj z pieczywem."],
+    tip: "W upał przygotuj bezpośrednio przed jedzeniem i nie zostawiaj na słońcu.",
+  },
+  {
+    name: "Serek wiejski z dodatkami", category: "Ekspresowe", time: "7 min", difficulty: "bardzo łatwe",
+    ingredients: ["serek wiejski", "wersja słona: pomidor, ogórek i szczypiorek", "wersja słodka: banan, owoce i miód", "pieczywo"],
+    steps: ["Rozdziel serek do misek.", "Dodaj wybrane słone lub słodkie dodatki.", "Dopraw wersję słoną pieprzem i solą.", "Podawaj od razu."],
+    tip: "Jedna baza pozwala łatwo przygotować równocześnie dwie wersje dla załogi.",
+  },
+  {
+    name: "Guacamole", category: "Bez gotowania", time: "12 min", difficulty: "łatwe",
+    ingredients: ["1 awokado na 2–3 osoby", "pomidor", "cebula", "sok z cytryny", "sól i pieprz", "pieczywo lub tortille"],
+    steps: ["Rozgnieć miąższ awokado widelcem.", "Dodaj drobno pokrojony pomidor i cebulę.", "Dopraw sokiem z cytryny, solą i pieprzem.", "Podawaj od razu z pieczywem lub tortillą."],
+    tip: "Cytryna poprawia smak i spowalnia ciemnienie awokado.",
+  },
 ];
 
 export const PRODUCTS = [
