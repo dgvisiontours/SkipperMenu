@@ -1,4 +1,4 @@
--- PROVIANT: uruchom cały plik w Supabase > SQL Editor.
+-- PASZOWÓZ: uruchom cały plik w Supabase > SQL Editor.
 create extension if not exists pgcrypto;
 
 do $$ begin

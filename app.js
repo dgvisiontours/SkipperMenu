@@ -17,6 +17,7 @@ const state = {
   dirty: false,
   dietSetupRequired: false,
   newTurnusMode: false,
+  missingBoatsExpanded: false,
 };
 
 const DEMO_REPORT = {
@@ -57,7 +58,7 @@ function showView(selector) {
 function toast(message, isError = false) {
   const element = $("#toast");
   element.textContent = message;
-  element.style.background = isError ? "#8d3d34" : "#173f45";
+  element.style.background = isError ? "#9f234f" : "#e50067";
   element.classList.add("show");
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => element.classList.remove("show"), 3200);
@@ -561,6 +562,7 @@ function renderRecipes() {
           <h3>${escapeHtml(recipe.name)}</h3>
         </div>
         <div class="recipe-meta">
+          <span>7–8 osób</span>
           <span>${escapeHtml(recipe.time)}</span>
           <span>${escapeHtml(recipe.difficulty)}</span>
           <b aria-hidden="true">+</b>
@@ -735,11 +737,15 @@ function renderReport() {
     [report.total_people || 0, "Osoby na jachtach"],
   ].map(([value, label]) => `<div class="stat"><strong>${value}</strong><span>${label}</span></div>`).join("");
   $("#reportStats").innerHTML = `${standardStats}
-    <div class="stat missing-stat">
+    <button id="missingBoatsStat" class="stat missing-stat" type="button" aria-expanded="${state.missingBoatsExpanded}">
       <strong>${missing.length}</strong>
       <span>Jachty bez zamówienia</span>
-      <small>${missing.length ? escapeHtml(missing.join(", ")) : "Wszystkie jachty złożyły zamówienie"}</small>
-    </div>`;
+      <small>${missing.length
+        ? state.missingBoatsExpanded
+          ? escapeHtml(missing.join(", "))
+          : "Kliknij, aby wyświetlić listę"
+        : "Wszystkie jachty złożyły zamówienie"}</small>
+    </button>`;
   const dietTotals = report.diet_totals || [];
   $("#dietReportSummary").innerHTML = dietTotals.length
     ? dietTotals.map((diet) => `<div class="diet-total"><strong>${formatNumber(diet.count)}</strong><span>${escapeHtml(diet.label)}</span></div>`).join("")
@@ -781,7 +787,7 @@ function exportCsv() {
   const csv = "\ufeff" + rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\r\n");
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  link.download = `proviant-${state.report.target_date}.csv`;
+  link.download = `paszowoz-${state.report.target_date}.csv`;
   link.click();
   URL.revokeObjectURL(link.href);
 }
@@ -804,6 +810,11 @@ function bindEvents() {
   $("#productSearch").addEventListener("input", renderProducts);
   $("#recipeSearch").addEventListener("input", renderRecipes);
   $("#reportSearch").addEventListener("input", renderReport);
+  $("#reportStats").addEventListener("click", (event) => {
+    if (!event.target.closest("#missingBoatsStat")) return;
+    state.missingBoatsExpanded = !state.missingBoatsExpanded;
+    renderReport();
+  });
   $("#refreshReportButton").addEventListener("click", loadReport);
   $("#reportDate").addEventListener("change", loadReport);
   $("#toggleBoatPackagesButton").addEventListener("click", () => {

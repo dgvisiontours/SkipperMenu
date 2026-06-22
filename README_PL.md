@@ -1,4 +1,4 @@
-# Proviant — aplikacja do zamówień na rejs
+# Paszowóz — aplikacja do zamówień na rejs
 
 Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce oraz może zostać dodana do ekranu głównego iPhone’a i telefonu z Androidem.
 
@@ -129,7 +129,7 @@ Po ponownym zalogowaniu zobaczy tylko raport zaopatrzenia, a techniczny jacht ni
 1. Otwórz link w Safari.
 2. Naciśnij ikonę udostępniania.
 3. Wybierz **Dodaj do ekranu początkowego**.
-4. Zatwierdź nazwę „Proviant”.
+4. Zatwierdź nazwę „Paszowóz”.
 
 ### Android
 

@@ -1,12 +1,12 @@
 {
-  "name": "Proviant — zamówienia rejsu",
-  "short_name": "Proviant",
+  "name": "Paszowóz — zaopatrzenie rejsu",
+  "short_name": "Paszowóz",
   "description": "Zamówienia produktów dla flotylli jachtów.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f1e8",
-  "theme_color": "#0b4f5c",
+  "background_color": "#eef8fc",
+  "theme_color": "#e50067",
   "lang": "pl",
   "icons": [
     { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
