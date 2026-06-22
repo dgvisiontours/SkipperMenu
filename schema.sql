@@ -423,6 +423,9 @@ begin
     if p_target_date <> v_local_now::date + 1 then
       raise exception 'Sternik może zamówić wyłącznie na następny dzień.';
     end if;
+    if v_local_now::time < time '10:00' then
+      raise exception 'Zamówienia można zmieniać od 10:00.';
+    end if;
     if v_local_now::time >= time '21:00' then
       raise exception 'Termin składania zamówień minął o 21:00.';
     end if;
@@ -477,6 +480,38 @@ begin
       select sum(coalesce((crew_profile->>'total')::integer, 0))
       from public.boats where active
     ), 0),
+    'diet_totals', coalesce((
+      select jsonb_agg(
+        jsonb_build_object('label', diet_label, 'count', diet_count)
+        order by sort_order, diet_label
+      )
+      from (
+        select 1 as sort_order, 'Wegetariańska'::text as diet_label,
+          sum(coalesce((p.diet_preferences->'vegetarian'->>'count')::integer, 0)) as diet_count
+        from public.profiles p join public.boats b on b.id = p.boat_id
+        where b.active and coalesce((p.diet_preferences->'vegetarian'->>'enabled')::boolean, false)
+        union all
+        select 2, 'Bez laktozy',
+          sum(coalesce((p.diet_preferences->'lactose_free'->>'count')::integer, 0))
+        from public.profiles p join public.boats b on b.id = p.boat_id
+        where b.active and coalesce((p.diet_preferences->'lactose_free'->>'enabled')::boolean, false)
+        union all
+        select 3, 'Bez glutenu',
+          sum(coalesce((p.diet_preferences->'gluten_free'->>'count')::integer, 0))
+        from public.profiles p join public.boats b on b.id = p.boat_id
+        where b.active and coalesce((p.diet_preferences->'gluten_free'->>'enabled')::boolean, false)
+        union all
+        select 4, trim(p.diet_preferences->'other'->>'description'),
+          sum(coalesce((p.diet_preferences->'other'->>'count')::integer, 0))
+        from public.profiles p join public.boats b on b.id = p.boat_id
+        where b.active
+          and coalesce((p.diet_preferences->'other'->>'enabled')::boolean, false)
+          and nullif(trim(p.diet_preferences->'other'->>'description'), '') is not null
+        group by lower(trim(p.diet_preferences->'other'->>'description')),
+          trim(p.diet_preferences->'other'->>'description')
+      ) diets
+      where coalesce(diet_count, 0) > 0
+    ), '[]'::jsonb),
     'submitted_boats', (select count(*) from public.orders where target_date = p_target_date),
     'missing_boats', coalesce((
       select jsonb_agg(b.name order by b.name)

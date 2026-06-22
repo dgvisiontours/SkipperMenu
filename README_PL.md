@@ -13,8 +13,10 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - przycisk **Nowy turnus**, który bez tworzenia nowego konta zmienia jacht i profil diet załogi;
 - obowiązkowy wybór miejsca przy zamówieniu: **W Rejsie** albo **W Zofiówce**;
 - panel zaopatrzeniowca pokazujący miejsce każdego jachtu i łączną liczbę osób na aktywnych jachtach;
-- jedno zamówienie jachtu na następny dzień, z możliwością poprawiania do 21:00;
-- blokada po 21:00 egzekwowana również w bazie danych;
+- zbiorcze podsumowanie liczby osób na poszczególnych dietach;
+- dodatkowe potwierdzenie przed rozpoczęciem nowego turnusu;
+- jedno zamówienie jachtu na następny dzień, z możliwością poprawiania wyłącznie między 10:00 a 21:00;
+- blokada przed 10:00 i po 21:00 egzekwowana również w bazie danych;
 - panel zaopatrzeniowca: suma produktów, rozpiska na jachty, brakujące zamówienia;
 - eksport listy zakupów do CSV i drukowanie/zapis do PDF;
 - logowanie i role: sternik, zaopatrzeniowiec, administrator;
@@ -63,6 +65,7 @@ export const CONFIG = {
   SUPABASE_ANON_KEY: "eyJhbGciOi...",
   DEMO_MODE: false,
   TIMEZONE: "Europe/Warsaw",
+  ORDER_OPEN_HOUR: 10,
   CUTOFF_HOUR: 21,
 };
 ```
@@ -139,9 +142,9 @@ Hosting musi działać przez HTTPS — Netlify zapewnia go automatycznie.
 ## Codzienny sposób pracy
 
 1. Sternik omawia z załogą potrzeby na następny dzień.
-2. Do 21:00 wybiera produkty, wpisuje ilości, diety i specjale.
+2. Między 10:00 a 21:00 wybiera produkty, wpisuje ilości i specjale.
 3. Może zapisywać poprawki wielokrotnie; liczy się ostatnia wersja.
-4. Po 21:00 konto sternika nie może już zmienić zamówienia.
+4. Przed 10:00 i po 21:00 konto sternika nie może zmienić zamówienia.
 5. Zaopatrzeniowiec otwiera raport na dzień wydania:
    - kupuje według listy skonsolidowanej;
    - pakuje produkty według kart poszczególnych jachtów;

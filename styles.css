@@ -235,12 +235,25 @@ h3 { font-size: 23px; }
 .report-toolbar { align-items: end; }
 .report-toolbar label { min-width: 170px; margin-left: auto; }
 .report-toolbar input { margin-bottom: 0; }
-.stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 22px 0; }
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0 12px; }
 .stat {
   padding: 17px; background: var(--white); border: 1px solid var(--line); border-radius: 16px;
 }
 .stat strong { display: block; font: 700 30px Georgia, serif; color: var(--sea); }
 .stat span { color: var(--muted); font-size: 12px; }
+.diet-report-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 22px;
+  padding: 18px; margin-bottom: 22px; background: var(--white); border: 1px solid var(--line); border-radius: 17px;
+}
+.diet-report-summary { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.diet-total {
+  min-width: 105px; padding: 10px 12px; color: var(--sea); background: #eaf3f0;
+  border: 1px solid #c7dbd6; border-radius: 12px; text-align: center;
+}
+.diet-total strong, .diet-total span { display: block; }
+.diet-total strong { font: 700 24px Georgia, serif; }
+.diet-total span { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.empty-inline { color: var(--muted); font-size: 13px; }
 .report-actions { margin-bottom: 14px; justify-content: flex-end; }
 .report-actions .search-box { margin-right: auto; }
 .report-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; }
@@ -347,6 +360,8 @@ footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px
   .recipe-body { grid-template-columns: 1fr; gap: 0; }
   .recipe-body aside { grid-column: auto; margin-top: 12px; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .diet-report-card { align-items: flex-start; flex-direction: column; }
+  .diet-report-summary { justify-content: flex-start; width: 100%; }
 }
 @media (max-width: 600px) {
   main { width: min(100% - 20px, 1180px); }
@@ -379,6 +394,7 @@ footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px
   .diet-count { grid-column: 3; width: 64px; }
   .diet-description { grid-column: 2 / 4; }
   .order-location-options { grid-template-columns: 1fr; }
+  .diet-total { flex: 1 1 120px; }
   .boat-type-options { grid-template-columns: 1fr; }
   .crew-count-grid { grid-template-columns: repeat(3, 1fr); }
   .crew-count-grid label { font-size: 11px; }

@@ -25,6 +25,12 @@ const DEMO_REPORT = {
   total_people: 58,
   submitted_boats: 6,
   missing_boats: ["Mewa", "Perkoz"],
+  diet_totals: [
+    { label: "Wegetariańska", count: 7 },
+    { label: "Bez laktozy", count: 4 },
+    { label: "Bez glutenu", count: 3 },
+    { label: "Bez orzechów", count: 1 },
+  ],
   consolidated: [
     { product_name: "Jajka", unit: "szt.", total_quantity: 63, boats: ["Bajka: 20", "Bryza: 10", "Czapla: 13", "Delfin: 20"] },
     { product_name: "Parówki", unit: "szt.", total_quantity: 44, boats: ["Bajka: 14", "Bryza: 20", "Czapla: 10"] },
@@ -87,9 +93,12 @@ function tomorrowDate() {
   return date.toISOString().slice(0, 10);
 }
 
-function isCutoffPassed() {
+function orderWindowState() {
   const { hour } = localParts();
-  return Number(hour) >= CONFIG.CUTOFF_HOUR;
+  const currentHour = Number(hour);
+  if (currentHour < CONFIG.ORDER_OPEN_HOUR) return "before";
+  if (currentHour >= CONFIG.CUTOFF_HOUR) return "after";
+  return "open";
 }
 
 function formatDate(dateString) {
@@ -235,12 +244,21 @@ function switchPanel(panel) {
 }
 
 function updateDeadline() {
-  const closed = isCutoffPassed();
+  const windowState = orderWindowState();
+  const closed = windowState !== "open";
   $("#deadlineCard").classList.toggle("closed", closed);
-  $("#deadlineTime").textContent = `dziś, ${String(CONFIG.CUTOFF_HOUR).padStart(2, "0")}:00`;
-  $("#deadlineStatus").textContent = closed ? "Przyjmowanie zamówień zakończone" : "Czas warszawski";
+  $("#deadlineTime").textContent = `${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00–${String(CONFIG.CUTOFF_HOUR).padStart(2, "0")}:00`;
+  $("#deadlineStatus").textContent = windowState === "before"
+    ? `Zamówienia otwierają się o ${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00`
+    : windowState === "after"
+      ? "Przyjmowanie zamówień zakończone"
+      : "Zamówienia są otwarte · czas warszawski";
   $("#submitOrderButton").disabled = closed && state.profile.role === "skipper";
-  $("#submitHeadline").textContent = closed ? "Termin składania zamówień minął" : "Zamówienie można jeszcze edytować";
+  $("#submitHeadline").textContent = windowState === "before"
+    ? `Zamówienia można zmieniać od ${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00`
+    : windowState === "after"
+      ? "Termin składania zamówień minął"
+      : "Zamówienie można jeszcze edytować";
 }
 
 function setupOrderPanel() {
@@ -459,6 +477,16 @@ async function saveDietPreferences(event) {
   button.textContent = state.newTurnusMode ? "Tworzenie turnusu…" : "Zapisywanie…";
   try {
     if (state.newTurnusMode) {
+      const currentBoatName = state.profile.boats?.name || "obecny jacht";
+      const confirmed = window.confirm(
+        `Czy na pewno rozpocząć nowy turnus na jachcie „${newBoatName}”?\n\n`
+        + `Jacht „${currentBoatName}” zostanie zdezaktywowany, a bieżąca lista zamówienia zostanie wyczyszczona. Historii poprzedniego turnusu nie usuniemy.`,
+      );
+      if (!confirmed) {
+        button.disabled = false;
+        button.textContent = "Rozpocznij nowy turnus";
+        return;
+      }
       let result;
       if (state.demo) {
         result = {
@@ -646,8 +674,12 @@ async function submitOrder() {
     toast("Przed pierwszym zamówieniem uzupełnij profil jachtu i załogi.", true);
     return;
   }
-  if (isCutoffPassed() && state.profile.role === "skipper") {
-    toast(`Termin minął o ${String(CONFIG.CUTOFF_HOUR).padStart(2, "0")}:00. Skontaktuj się z zaopatrzeniowcem.`, true);
+  const windowState = orderWindowState();
+  if (windowState !== "open" && state.profile.role === "skipper") {
+    const message = windowState === "before"
+      ? `Zamówienia można zmieniać od ${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00.`
+      : `Termin minął o ${String(CONFIG.CUTOFF_HOUR).padStart(2, "0")}:00. Skontaktuj się z zaopatrzeniowcem.`;
+    toast(message, true);
     return;
   }
   const items = [...state.quantities].map(([product_id, quantity]) => ({ product_id, quantity }));
@@ -677,7 +709,7 @@ async function submitOrder() {
   } catch (error) {
     toast(error.message, true);
   } finally {
-    button.disabled = isCutoffPassed() && state.profile.role === "skipper";
+    button.disabled = orderWindowState() !== "open" && state.profile.role === "skipper";
     button.textContent = "Zapisz zamówienie";
   }
 }
@@ -697,14 +729,16 @@ async function loadReport() {
 function renderReport() {
   const report = state.report || { consolidated: [], boats: [], missing_boats: [] };
   const productsCount = report.consolidated?.length || 0;
-  const itemSum = (report.consolidated || []).reduce((sum, item) => sum + Number(item.total_quantity), 0);
   $("#reportStats").innerHTML = [
     [report.submitted_boats || 0, "Jachty z zamówieniem"],
     [report.total_boats || 0, "Wszystkie aktywne jachty"],
     [report.total_people || 0, "Osoby na jachtach"],
     [productsCount, "Różne produkty"],
-    [formatNumber(itemSum), "Łączna liczba jednostek"],
   ].map(([value, label]) => `<div class="stat"><strong>${value}</strong><span>${label}</span></div>`).join("");
+  const dietTotals = report.diet_totals || [];
+  $("#dietReportSummary").innerHTML = dietTotals.length
+    ? dietTotals.map((diet) => `<div class="diet-total"><strong>${formatNumber(diet.count)}</strong><span>${escapeHtml(diet.label)}</span></div>`).join("")
+    : `<span class="empty-inline">Brak zgłoszonych diet na aktywnych jachtach.</span>`;
 
   const query = $("#reportSearch").value.trim().toLocaleLowerCase("pl");
   const consolidated = (report.consolidated || []).filter((item) => item.product_name.toLocaleLowerCase("pl").includes(query));
