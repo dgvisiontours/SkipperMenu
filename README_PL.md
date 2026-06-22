@@ -7,7 +7,8 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - katalog 68 produktów odczytanych z pliku Excel;
 - ilości, kategorie, wyszukiwarka oraz jednostki;
 - osobna baza śniadań z przepisami, składnikami i wskazówkami do przygotowania na jachcie;
-- diety/alergie i specjalne prośby w zamówieniu;
+- obowiązkowy profil diet załogi przed pierwszym zamówieniem: wege, bez laktozy, bez glutenu i inne;
+- możliwość późniejszej edycji diet oraz specjalne prośby w zamówieniu;
 - jedno zamówienie jachtu na następny dzień, z możliwością poprawiania do 18:00;
 - blokada po 18:00 egzekwowana również w bazie danych;
 - panel zaopatrzeniowca: suma produktów, rozpiska na jachty, brakujące zamówienia;
@@ -37,6 +38,10 @@ Nie trzeba tworzyć osobnych aplikacji w App Store ani Google Play. PWA jest naj
 6. Otwórz **Project Settings** → **Data API / API** i skopiuj:
    - Project URL,
    - klucz `anon` / `publishable` (to klucz publiczny; nie używaj `service_role`).
+
+Jeżeli aktualizujesz już działającą wersję aplikacji, ponownie uruchom cały aktualny
+plik `schema.sql` w SQL Editor. Doda on pole profilu diet i wymagane funkcje bez
+usuwania istniejących użytkowników ani zamówień.
 
 ### 2. Połącz aplikację z Supabase
 

@@ -15,6 +15,7 @@ const state = {
   report: null,
   demo: false,
   dirty: false,
+  dietSetupRequired: false,
 };
 
 const DEMO_REPORT = {
@@ -145,7 +146,7 @@ async function restoreSession() {
 async function loadProfileAndProducts() {
   const userId = state.session.user.id;
   const [profiles, products] = await Promise.all([
-    api(`/rest/v1/profiles?select=id,full_name,role,boat_id,boats(name)&id=eq.${userId}`),
+    api(`/rest/v1/profiles?select=id,full_name,role,boat_id,diet_preferences,boats(name)&id=eq.${userId}`),
     api("/rest/v1/products?select=id,name,category,unit,sort_order&active=eq.true&order=sort_order.asc"),
   ]);
   if (!profiles[0]) throw new Error("Brak profilu użytkownika. Uruchom ponownie skrypt schema.sql.");
@@ -155,7 +156,10 @@ async function loadProfileAndProducts() {
 
 function enterDemo() {
   state.demo = true;
-  state.profile = { full_name: "Daniel (demo)", role: "admin", boat_id: "demo-boat", boats: { name: "Bajka" } };
+  state.profile = {
+    full_name: "Daniel (demo)", role: "admin", boat_id: "demo-boat", boats: { name: "Bajka" },
+    diet_preferences: null,
+  };
   state.products = FALLBACK_PRODUCTS;
   state.report = DEMO_REPORT;
   openApp();
@@ -167,11 +171,15 @@ function openApp() {
   $("#userLabel").textContent = `${state.profile.full_name} · ${state.profile.boats?.name || roleName(state.profile.role)}`;
   renderNavigation();
   setupOrderPanel();
+  renderDietSummary();
   renderRecipeFilters();
   renderRecipes();
   updateDeadline();
   const role = state.profile.role;
   switchPanel(role === "supplier" ? "supplier" : "skipper");
+  if (["skipper", "admin"].includes(role) && state.profile.boat_id && !state.profile.diet_preferences) {
+    openDietModal(true);
+  }
 }
 
 function roleName(role) {
@@ -228,6 +236,160 @@ function updateDeadline() {
 function setupOrderPanel() {
   renderCategoryFilters();
   renderProducts();
+}
+
+function emptyDietPreferences() {
+  return {
+    no_diets: false,
+    vegetarian: { enabled: false, count: 1 },
+    lactose_free: { enabled: false, count: 1 },
+    gluten_free: { enabled: false, count: 1 },
+    other: { enabled: false, count: 1, description: "" },
+  };
+}
+
+function dietPreferencesText(preferences = state.profile?.diet_preferences) {
+  if (!preferences) return "Profil nie został jeszcze uzupełniony";
+  if (preferences.no_diets) return "Brak diet i alergii";
+  const items = [];
+  if (preferences.vegetarian?.enabled) items.push(`${preferences.vegetarian.count} wege`);
+  if (preferences.lactose_free?.enabled) items.push(`${preferences.lactose_free.count} bez laktozy`);
+  if (preferences.gluten_free?.enabled) items.push(`${preferences.gluten_free.count} bez glutenu`);
+  if (preferences.other?.enabled) items.push(`${preferences.other.count} inne: ${preferences.other.description}`);
+  return items.join(" · ") || "Brak diet i alergii";
+}
+
+function renderDietSummary() {
+  const summary = $("#dietSummary");
+  if (!summary) return;
+  const preferences = state.profile?.diet_preferences;
+  if (!preferences) {
+    summary.innerHTML = `<span class="diet-pill warning">Wymaga uzupełnienia</span>`;
+    return;
+  }
+  if (preferences.no_diets) {
+    summary.innerHTML = `<span class="diet-pill neutral">Brak diet i alergii</span>`;
+    return;
+  }
+  const pills = [];
+  if (preferences.vegetarian?.enabled) pills.push(`${preferences.vegetarian.count} × wege`);
+  if (preferences.lactose_free?.enabled) pills.push(`${preferences.lactose_free.count} × bez laktozy`);
+  if (preferences.gluten_free?.enabled) pills.push(`${preferences.gluten_free.count} × bez glutenu`);
+  if (preferences.other?.enabled) pills.push(`${preferences.other.count} × ${preferences.other.description}`);
+  summary.innerHTML = pills.map((text) => `<span class="diet-pill">${escapeHtml(text)}</span>`).join("");
+}
+
+function syncDietFormState() {
+  const form = $("#dietForm");
+  const noDiets = form.elements.noDiets.checked;
+  ["vegetarian", "lactoseFree", "glutenFree", "other"].forEach((key) => {
+    const enabled = form.elements[`${key}Enabled`];
+    const count = form.elements[`${key}Count`];
+    if (noDiets) enabled.checked = false;
+    enabled.disabled = noDiets;
+    count.disabled = noDiets || !enabled.checked;
+  });
+  form.elements.otherDescription.disabled = noDiets || !form.elements.otherEnabled.checked;
+  $$(".diet-option").forEach((row) => {
+    const checkbox = row.querySelector('input[type="checkbox"]');
+    row.classList.toggle("selected", checkbox.checked);
+    row.classList.toggle("disabled", checkbox.disabled);
+  });
+}
+
+function openDietModal(required = false) {
+  state.dietSetupRequired = required;
+  const preferences = state.profile?.diet_preferences || emptyDietPreferences();
+  const form = $("#dietForm");
+  form.elements.vegetarianEnabled.checked = Boolean(preferences.vegetarian?.enabled);
+  form.elements.vegetarianCount.value = preferences.vegetarian?.count || 1;
+  form.elements.lactoseFreeEnabled.checked = Boolean(preferences.lactose_free?.enabled);
+  form.elements.lactoseFreeCount.value = preferences.lactose_free?.count || 1;
+  form.elements.glutenFreeEnabled.checked = Boolean(preferences.gluten_free?.enabled);
+  form.elements.glutenFreeCount.value = preferences.gluten_free?.count || 1;
+  form.elements.otherEnabled.checked = Boolean(preferences.other?.enabled);
+  form.elements.otherCount.value = preferences.other?.count || 1;
+  form.elements.otherDescription.value = preferences.other?.description || "";
+  form.elements.noDiets.checked = Boolean(preferences.no_diets);
+  $("#dietFormError").classList.add("hidden");
+  $("#closeDietModalButton").classList.toggle("hidden", required);
+  $("#dietModalTitle").textContent = required ? "Najpierw ustaw diety załogi" : "Diety i alergie";
+  $("#dietModal").classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  syncDietFormState();
+}
+
+function closeDietModal() {
+  if (state.dietSetupRequired) return;
+  $("#dietModal").classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+function collectDietPreferences() {
+  const form = $("#dietForm");
+  return {
+    no_diets: form.elements.noDiets.checked,
+    vegetarian: {
+      enabled: form.elements.vegetarianEnabled.checked,
+      count: Number(form.elements.vegetarianCount.value) || 0,
+    },
+    lactose_free: {
+      enabled: form.elements.lactoseFreeEnabled.checked,
+      count: Number(form.elements.lactoseFreeCount.value) || 0,
+    },
+    gluten_free: {
+      enabled: form.elements.glutenFreeEnabled.checked,
+      count: Number(form.elements.glutenFreeCount.value) || 0,
+    },
+    other: {
+      enabled: form.elements.otherEnabled.checked,
+      count: Number(form.elements.otherCount.value) || 0,
+      description: form.elements.otherDescription.value.trim(),
+    },
+  };
+}
+
+function validateDietPreferences(preferences) {
+  const enabled = [preferences.vegetarian, preferences.lactose_free, preferences.gluten_free, preferences.other]
+    .filter((diet) => diet.enabled);
+  if (!preferences.no_diets && enabled.length === 0) return "Wybierz przynajmniej jedną dietę albo zaznacz brak diet.";
+  if (preferences.no_diets && enabled.length) return "Nie można jednocześnie wybrać diet i braku diet.";
+  if (enabled.some((diet) => diet.count < 1)) return "Podaj liczbę osób dla każdej zaznaczonej diety.";
+  if (preferences.other.enabled && !preferences.other.description) return "Wpisz nazwę innej diety lub alergii.";
+  return "";
+}
+
+async function saveDietPreferences(event) {
+  event.preventDefault();
+  const preferences = collectDietPreferences();
+  const error = validateDietPreferences(preferences);
+  const errorElement = $("#dietFormError");
+  if (error) {
+    errorElement.textContent = error;
+    errorElement.classList.remove("hidden");
+    return;
+  }
+  const button = $("#saveDietsButton");
+  button.disabled = true;
+  button.textContent = "Zapisywanie…";
+  try {
+    if (!state.demo) {
+      await api("/rest/v1/rpc/save_diet_preferences", {
+        method: "POST", body: { p_preferences: preferences },
+      });
+    }
+    state.profile.diet_preferences = preferences;
+    state.dietSetupRequired = false;
+    renderDietSummary();
+    closeDietModal();
+    toast("Profil diet załogi został zapisany.");
+  } catch (saveError) {
+    errorElement.textContent = saveError.message;
+    errorElement.classList.remove("hidden");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Zapisz profil załogi";
+  }
 }
 
 function renderRecipeFilters() {
@@ -341,18 +503,16 @@ async function loadMyOrder() {
   state.quantities.clear();
   if (state.demo) {
     [["demo-34", 20], ["demo-5", 7], ["demo-64", 8], ["demo-47", 2]].forEach(([id, qty]) => state.quantities.set(id, qty));
-    $("#dietNotes").value = "1 osoba bez laktozy";
     $("#specialRequests").value = "Zgrzewka wody gazowanej";
     state.dirty = false;
     renderProducts();
     return;
   }
   try {
-    const rows = await api(`/rest/v1/orders?select=id,diet_notes,special_requests,submitted_at,order_items(product_id,quantity)&target_date=eq.${tomorrowDate()}&limit=1`);
+    const rows = await api(`/rest/v1/orders?select=id,special_requests,submitted_at,order_items(product_id,quantity)&target_date=eq.${tomorrowDate()}&limit=1`);
     const order = rows[0];
     if (order) {
       order.order_items.forEach((item) => state.quantities.set(item.product_id, Number(item.quantity)));
-      $("#dietNotes").value = order.diet_notes || "";
       $("#specialRequests").value = order.special_requests || "";
     }
     state.dirty = false;
@@ -363,6 +523,11 @@ async function loadMyOrder() {
 }
 
 async function submitOrder() {
+  if (!state.profile.diet_preferences) {
+    openDietModal(true);
+    toast("Przed pierwszym zamówieniem uzupełnij diety załogi.", true);
+    return;
+  }
   if (isCutoffPassed() && state.profile.role === "skipper") {
     toast("Termin minął o 18:00. Skontaktuj się z zaopatrzeniowcem.", true);
     return;
@@ -370,7 +535,7 @@ async function submitOrder() {
   const items = [...state.quantities].map(([product_id, quantity]) => ({ product_id, quantity }));
   const payload = {
     p_target_date: tomorrowDate(),
-    p_diet_notes: $("#dietNotes").value.trim(),
+    p_diet_notes: dietPreferencesText(),
     p_special_requests: $("#specialRequests").value.trim(),
     p_breakfast_choices: [],
     p_items: items,
@@ -473,9 +638,16 @@ function bindEvents() {
   $("#refreshReportButton").addEventListener("click", loadReport);
   $("#reportDate").addEventListener("change", loadReport);
   $("#submitOrderButton").addEventListener("click", submitOrder);
+  $("#editDietsButton").addEventListener("click", () => openDietModal(false));
+  $("#closeDietModalButton").addEventListener("click", closeDietModal);
+  $("#dietForm").addEventListener("submit", saveDietPreferences);
+  $$("#dietForm input[type='checkbox']").forEach((input) => input.addEventListener("change", () => {
+    if (input.name !== "noDiets" && input.checked) $("#dietForm").elements.noDiets.checked = false;
+    syncDietFormState();
+  }));
   $("#exportCsvButton").addEventListener("click", exportCsv);
   $("#printButton").addEventListener("click", () => window.print());
-  ["#dietNotes", "#specialRequests"].forEach((selector) => $(selector).addEventListener("input", () => {
+  ["#specialRequests"].forEach((selector) => $(selector).addEventListener("input", () => {
     state.dirty = true;
     updateOrderSummary();
   }));

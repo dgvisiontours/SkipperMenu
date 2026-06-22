@@ -18,8 +18,11 @@ create table if not exists public.profiles (
   full_name text not null,
   role public.app_role not null default 'skipper',
   boat_id uuid references public.boats(id),
+  diet_preferences jsonb,
   created_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists diet_preferences jsonb;
 
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
@@ -164,6 +167,69 @@ using (
   )
 );
 
+create or replace function public.diet_preferences_to_text(p_preferences jsonb)
+returns text
+language sql immutable
+as $$
+  select case
+    when p_preferences is null then ''
+    when coalesce((p_preferences->>'no_diets')::boolean, false) then 'Brak diet i alergii'
+    else concat_ws(', ',
+      case when coalesce((p_preferences->'vegetarian'->>'enabled')::boolean, false)
+        then (p_preferences->'vegetarian'->>'count') || ' wege' end,
+      case when coalesce((p_preferences->'lactose_free'->>'enabled')::boolean, false)
+        then (p_preferences->'lactose_free'->>'count') || ' bez laktozy' end,
+      case when coalesce((p_preferences->'gluten_free'->>'enabled')::boolean, false)
+        then (p_preferences->'gluten_free'->>'count') || ' bez glutenu' end,
+      case when coalesce((p_preferences->'other'->>'enabled')::boolean, false)
+        then (p_preferences->'other'->>'count') || ' inne: ' || trim(p_preferences->'other'->>'description') end
+    )
+  end
+$$;
+
+create or replace function public.save_diet_preferences(p_preferences jsonb)
+returns jsonb
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_no_diets boolean := coalesce((p_preferences->>'no_diets')::boolean, false);
+  v_any_enabled boolean;
+begin
+  if auth.uid() is null then raise exception 'Brak aktywnej sesji.'; end if;
+
+  v_any_enabled :=
+    coalesce((p_preferences->'vegetarian'->>'enabled')::boolean, false)
+    or coalesce((p_preferences->'lactose_free'->>'enabled')::boolean, false)
+    or coalesce((p_preferences->'gluten_free'->>'enabled')::boolean, false)
+    or coalesce((p_preferences->'other'->>'enabled')::boolean, false);
+
+  if not v_no_diets and not v_any_enabled then
+    raise exception 'Wybierz przynajmniej jedną dietę albo zaznacz brak diet.';
+  end if;
+  if v_no_diets and v_any_enabled then
+    raise exception 'Nie można jednocześnie wybrać diet i braku diet.';
+  end if;
+  if coalesce((p_preferences->'other'->>'enabled')::boolean, false)
+    and nullif(trim(p_preferences->'other'->>'description'), '') is null then
+    raise exception 'Opisz inną dietę lub alergię.';
+  end if;
+  if exists (
+    select 1 from (values
+      (p_preferences->'vegetarian'), (p_preferences->'lactose_free'),
+      (p_preferences->'gluten_free'), (p_preferences->'other')
+    ) as d(item)
+    where coalesce((item->>'enabled')::boolean, false)
+      and coalesce((item->>'count')::integer, 0) < 1
+  ) then
+    raise exception 'Liczba osób musi wynosić co najmniej 1.';
+  end if;
+
+  update public.profiles set diet_preferences = p_preferences where id = auth.uid();
+  return p_preferences;
+end;
+$$;
+
 -- Zapisy odbywają się wyłącznie przez tę funkcję. Deadline jest sprawdzany po stronie serwera.
 create or replace function public.submit_order(
   p_target_date date,
@@ -180,9 +246,12 @@ declare
   v_boat_id uuid;
   v_order_id uuid;
   v_local_now timestamp;
+  v_diet_preferences jsonb;
 begin
-  select role, boat_id into v_role, v_boat_id from public.profiles where id = auth.uid();
+  select role, boat_id, diet_preferences into v_role, v_boat_id, v_diet_preferences
+  from public.profiles where id = auth.uid();
   if v_role is null or v_boat_id is null then raise exception 'Konto nie jest przypisane do jachtu.'; end if;
+  if v_diet_preferences is null then raise exception 'Najpierw uzupełnij profil diet załogi.'; end if;
 
   v_local_now := now() at time zone 'Europe/Warsaw';
   if v_role = 'skipper' then
@@ -198,7 +267,7 @@ begin
     boat_id, target_date, diet_notes, special_requests, breakfast_choices,
     submitted_by, submitted_at, updated_at
   ) values (
-    v_boat_id, p_target_date, coalesce(p_diet_notes,''), coalesce(p_special_requests,''),
+    v_boat_id, p_target_date, public.diet_preferences_to_text(v_diet_preferences), coalesce(p_special_requests,''),
     coalesce(p_breakfast_choices,'{}'), auth.uid(), now(), now()
   )
   on conflict (boat_id, target_date) do update set
@@ -291,6 +360,7 @@ $$;
 
 grant execute on function public.submit_order(date,text,text,text[],jsonb) to authenticated;
 grant execute on function public.get_supplier_report(date) to authenticated;
+grant execute on function public.save_diet_preferences(jsonb) to authenticated;
 grant execute on function public.current_app_role() to authenticated;
 grant execute on function public.current_boat_id() to authenticated;
 

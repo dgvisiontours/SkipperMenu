@@ -18,7 +18,7 @@
         <span class="brand-mark">P</span>
         <span>
           <strong>Proviant</strong>
-          <small>Zamówienia flotylli</small>
+          <small>Twoje Skipperowe Menu</small>
         </span>
       </a>
       <div id="userMenu" class="user-menu hidden">
@@ -109,10 +109,14 @@
           <div id="productList" class="product-list"></div>
 
           <div class="notes-grid">
-            <label class="field-card">
-              <span>Diety i alergie</span>
-              <textarea id="dietNotes" rows="5" placeholder="np. 2 wege, 1 bez laktozy"></textarea>
-            </label>
+            <article class="field-card diet-summary-card">
+              <div class="field-card-heading">
+                <span>Diety i alergie załogi</span>
+                <button id="editDietsButton" class="button ghost compact" type="button">Edytuj</button>
+              </div>
+              <div id="dietSummary" class="diet-summary"></div>
+              <small>Ustawienia są zapamiętane i dodawane do każdego zamówienia.</small>
+            </article>
             <label class="field-card">
               <span>Specjalne prośby</span>
               <textarea id="specialRequests" rows="5" placeholder="np. zgrzewka wody, ręcznik papierowy"></textarea>
@@ -182,6 +186,54 @@
         </section>
       </section>
     </main>
+
+    <div id="dietModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="dietModalTitle">
+      <form id="dietForm" class="modal-card">
+        <div class="modal-heading">
+          <div>
+            <span class="eyebrow">Profil załogi</span>
+            <h2 id="dietModalTitle">Diety i alergie</h2>
+            <p>Zaznacz występujące diety i podaj liczbę osób.</p>
+          </div>
+          <button id="closeDietModalButton" class="modal-close" type="button" aria-label="Zamknij">×</button>
+        </div>
+
+        <div class="diet-options">
+          <label class="diet-option">
+            <input name="vegetarianEnabled" type="checkbox" />
+            <span class="diet-check">✓</span>
+            <span class="diet-label"><strong>Wegetariańska</strong><small>Osoby niejedzące mięsa</small></span>
+            <input name="vegetarianCount" class="diet-count" type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="Liczba osób wegetariańskich" disabled />
+          </label>
+          <label class="diet-option">
+            <input name="lactoseFreeEnabled" type="checkbox" />
+            <span class="diet-check">✓</span>
+            <span class="diet-label"><strong>Bez laktozy</strong><small>Produkty bezlaktozowe lub roślinne</small></span>
+            <input name="lactoseFreeCount" class="diet-count" type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="Liczba osób bez laktozy" disabled />
+          </label>
+          <label class="diet-option">
+            <input name="glutenFreeEnabled" type="checkbox" />
+            <span class="diet-check">✓</span>
+            <span class="diet-label"><strong>Bez glutenu</strong><small>Pieczywo i produkty bezglutenowe</small></span>
+            <input name="glutenFreeCount" class="diet-count" type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="Liczba osób bez glutenu" disabled />
+          </label>
+          <label class="diet-option diet-option-other">
+            <input name="otherEnabled" type="checkbox" />
+            <span class="diet-check">✓</span>
+            <span class="diet-label"><strong>Inna dieta lub alergia</strong><small>Wpisz jaka, np. bez orzechów</small></span>
+            <input name="otherCount" class="diet-count" type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="Liczba osób z inną dietą" disabled />
+            <input name="otherDescription" class="diet-description" type="text" maxlength="200" placeholder="Jaka dieta lub alergia?" disabled />
+          </label>
+        </div>
+
+        <label class="no-diets-option">
+          <input name="noDiets" type="checkbox" />
+          <span>W załodze nie ma diet ani alergii</span>
+        </label>
+        <p id="dietFormError" class="form-error hidden"></p>
+        <button id="saveDietsButton" class="button primary wide" type="submit">Zapisz profil załogi</button>
+      </form>
+    </div>
 
     <footer>Proviant · działa jako aplikacja PWA na iOS i Androidzie</footer>
     <script type="module" src="./app.js"></script>
