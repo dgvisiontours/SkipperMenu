@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b4f5c" />
+    <meta name="description" content="Codzienne zamówienia produktów dla flotylli jachtów." />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Proviant — zamówienia rejsu</title>
+  </head>
+  <body>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Proviant — strona główna">
+        <span class="brand-mark">P</span>
+        <span>
+          <strong>Proviant</strong>
+          <small>Zamówienia flotylli</small>
+        </span>
+      </a>
+      <div id="userMenu" class="user-menu hidden">
+        <span id="userLabel"></span>
+        <button id="logoutButton" class="button ghost compact">Wyloguj</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="loadingView" class="center-card">
+        <div class="spinner"></div>
+        <p>Stawiamy prowiant na pokładzie…</p>
+      </section>
+
+      <section id="setupView" class="center-card hidden">
+        <span class="eyebrow">Pierwsze uruchomienie</span>
+        <h1>Połącz aplikację z bazą Supabase</h1>
+        <p>Uzupełnij adres projektu i klucz publiczny w pliku <code>config.js</code>, a następnie wyłącz tryb demonstracyjny.</p>
+        <button id="enterDemoButton" class="button primary">Wejdź do wersji demo</button>
+      </section>
+
+      <section id="authView" class="auth-layout hidden">
+        <div class="auth-intro">
+          <span class="eyebrow">Mniej arkuszy. Więcej żeglowania.</span>
+          <h1>Jutrzejszy prowiant,<br />ogarnięty przed 18:00.</h1>
+          <p>Sternicy składają zamówienia z telefonu, a zaopatrzeniowiec dostaje jedną, gotową listę zakupów i paczki rozpisane na jachty.</p>
+          <div class="feature-row">
+            <span>✓ 68 produktów z arkusza</span>
+            <span>✓ diety i specjale</span>
+            <span>✓ raport zbiorczy</span>
+          </div>
+        </div>
+        <div class="auth-card">
+          <div class="tabs">
+            <button class="tab active" data-auth-tab="login">Logowanie</button>
+            <button class="tab" data-auth-tab="signup">Nowe konto</button>
+          </div>
+          <form id="loginForm" class="form-stack">
+            <label>E-mail<input name="email" type="email" autocomplete="email" required /></label>
+            <label>Hasło<input name="password" type="password" autocomplete="current-password" minlength="8" required /></label>
+            <button class="button primary wide" type="submit">Zaloguj się</button>
+          </form>
+          <form id="signupForm" class="form-stack hidden">
+            <label>Imię i nazwisko<input name="fullName" autocomplete="name" required /></label>
+            <label>Nazwa jachtu<input name="boatName" placeholder="np. Antila 27 — Mewa" required /></label>
+            <label>E-mail<input name="email" type="email" autocomplete="email" required /></label>
+            <label>Hasło<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
+            <button class="button primary wide" type="submit">Utwórz konto sternika</button>
+            <small>Po rejestracji sprawdź skrzynkę e-mail, jeśli w Supabase włączono potwierdzanie kont.</small>
+          </form>
+        </div>
+      </section>
+
+      <section id="appView" class="app-shell hidden">
+        <div class="hero">
+          <div>
+            <span id="roleEyebrow" class="eyebrow">Panel sternika</span>
+            <h1 id="heroTitle">Zamówienie na jutro</h1>
+            <p id="heroSubtitle"></p>
+          </div>
+          <div id="deadlineCard" class="deadline-card">
+            <span>Termin</span>
+            <strong id="deadlineTime">dziś, 18:00</strong>
+            <small id="deadlineStatus"></small>
+          </div>
+        </div>
+
+        <nav id="appNav" class="app-nav"></nav>
+
+        <section id="skipperPanel" class="panel hidden">
+          <div class="order-toolbar">
+            <div>
+              <span class="section-kicker">Produkty</span>
+              <h2>Co zabieracie jutro?</h2>
+            </div>
+            <label class="search-box">
+              <span>⌕</span>
+              <input id="productSearch" type="search" placeholder="Szukaj produktu…" />
+            </label>
+          </div>
+
+          <div id="orderSummary" class="summary-strip">
+            <span><strong id="selectedCount">0</strong> wybranych pozycji</span>
+            <span id="saveState">Niezapisane</span>
+          </div>
+
+          <div id="categoryFilters" class="chips"></div>
+          <div id="productList" class="product-list"></div>
+
+          <div class="notes-grid">
+            <label class="field-card">
+              <span>Pomysł na śniadanie</span>
+              <select id="breakfastSelect" multiple size="5"></select>
+              <small>Możesz zaznaczyć kilka propozycji.</small>
+            </label>
+            <label class="field-card">
+              <span>Diety i alergie</span>
+              <textarea id="dietNotes" rows="5" placeholder="np. 2 wege, 1 bez laktozy"></textarea>
+            </label>
+            <label class="field-card">
+              <span>Specjalne prośby</span>
+              <textarea id="specialRequests" rows="5" placeholder="np. zgrzewka wody, ręcznik papierowy"></textarea>
+            </label>
+          </div>
+
+          <div class="sticky-submit">
+            <div>
+              <strong id="submitHeadline">Zamówienie można jeszcze edytować</strong>
+              <small>Każde ponowne wysłanie zastępuje poprzednią wersję.</small>
+            </div>
+            <button id="submitOrderButton" class="button primary">Zapisz zamówienie</button>
+          </div>
+        </section>
+
+        <section id="supplierPanel" class="panel hidden">
+          <div class="report-toolbar">
+            <div>
+              <span class="section-kicker">Centrum zaopatrzenia</span>
+              <h2>Lista na wybrany dzień</h2>
+            </div>
+            <label>Data wydania<input id="reportDate" type="date" /></label>
+            <button id="refreshReportButton" class="button secondary">Odśwież</button>
+          </div>
+
+          <div id="reportStats" class="stat-grid"></div>
+
+          <div class="report-actions">
+            <label class="search-box">
+              <span>⌕</span>
+              <input id="reportSearch" type="search" placeholder="Filtruj listę…" />
+            </label>
+            <button id="exportCsvButton" class="button secondary">Pobierz CSV</button>
+            <button id="printButton" class="button secondary">Drukuj / PDF</button>
+          </div>
+
+          <div class="report-grid">
+            <article class="report-card">
+              <div class="card-heading">
+                <div><span class="section-kicker">Zakupy</span><h3>Lista skonsolidowana</h3></div>
+              </div>
+              <div id="consolidatedList" class="table-wrap"></div>
+            </article>
+            <article class="report-card">
+              <div class="card-heading">
+                <div><span class="section-kicker">Pakowanie</span><h3>Paczki dla jachtów</h3></div>
+              </div>
+              <div id="boatPackages" class="boat-packages"></div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer>Proviant · działa jako aplikacja PWA na iOS i Androidzie</footer>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
