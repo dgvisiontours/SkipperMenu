@@ -178,6 +178,24 @@
             <div id="dietReportSummary" class="diet-report-summary"></div>
           </article>
 
+          <article id="userAdminCard" class="user-admin-card hidden">
+            <div class="user-admin-heading">
+              <div>
+                <span class="section-kicker">Uprawnienia</span>
+                <h3>Usuwanie kont użytkowników</h3>
+                <p>Wpisz e-mail konta, które ma zostać całkowicie usunięte z aplikacji.</p>
+              </div>
+              <button id="refreshUsersButton" class="button secondary" type="button">Odśwież listę</button>
+            </div>
+            <div class="delete-user-row">
+              <label>E-mail użytkownika
+                <input id="deleteUserEmail" type="email" placeholder="np. sternik@example.com" autocomplete="off" />
+              </label>
+              <button id="deleteUserButton" class="button danger" type="button">Usuń konto</button>
+            </div>
+            <div id="userAdminList" class="user-admin-list"></div>
+          </article>
+
           <div class="report-actions">
             <label class="search-box">
               <span>⌕</span>

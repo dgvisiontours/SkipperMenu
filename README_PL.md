@@ -20,6 +20,7 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - panel zaopatrzeniowca: suma produktów z filtrem wszystko / W Rejsie / W Zofiówce / Wyprawa, rozpiska na jachty, brakujące zamówienia;
 - eksport listy zakupów do CSV i drukowanie/zapis do PDF;
 - logowanie i role: sternik, zaopatrzeniowiec, administrator;
+- wybrane konta sterników mogą dodatkowo widzieć raport zaopatrzenia i usuwać konta użytkowników;
 - instalacja jako PWA na iOS i Androidzie.
 
 ## Potrzebne narzędzia
@@ -149,6 +150,9 @@ Hosting musi działać przez HTTPS — Netlify zapewnia go automatycznie.
    - kupuje według listy skonsolidowanej;
    - pakuje produkty według kart poszczególnych jachtów;
    - widzi, które jachty nie złożyły zamówienia.
+
+Wybrane konta sterników z listy w `schema.sql` pozostają zwykłymi sternikami, ale w aplikacji widzą
+również raport zaopatrzenia oraz panel usuwania kont użytkowników.
 
 ## Rozpoczęcie kolejnego turnusu
 

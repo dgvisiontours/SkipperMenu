@@ -263,6 +263,27 @@ h3 { font-size: 23px; }
   display: flex; align-items: center; justify-content: space-between; gap: 22px;
   padding: 18px; margin-bottom: 22px; background: var(--white); border: 1px solid var(--line); border-radius: 17px;
 }
+.user-admin-card {
+  padding: 18px; margin-bottom: 22px; background: #fffdf8; border: 1px solid var(--line); border-radius: 17px;
+}
+.user-admin-heading, .delete-user-row {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+}
+.user-admin-heading { align-items: flex-start; margin-bottom: 14px; }
+.user-admin-heading p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+.delete-user-row label { flex: 1; }
+.button.danger { color: #fff; background: #9f234f; }
+.button.danger:hover { filter: brightness(.95); }
+.user-admin-list {
+  display: grid; gap: 8px; max-height: 220px; overflow: auto; margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.user-account-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+  padding: 10px 12px; background: #fff; border: 1px solid #e5e8e3; border-radius: 12px; font-size: 13px;
+}
+.user-account-row strong, .user-account-row small { display: block; }
+.user-account-row small { margin-top: 2px; color: var(--muted); }
 .diet-report-summary { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .diet-total {
   min-width: 105px; padding: 10px 12px; color: #087ca7; background: #e2f5fc;

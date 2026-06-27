@@ -31,6 +31,19 @@ create table if not exists public.profiles (
 
 alter table public.profiles add column if not exists diet_preferences jsonb;
 
+create table if not exists public.privileged_user_emails (
+  email text primary key,
+  created_at timestamptz not null default now()
+);
+
+insert into public.privileged_user_emails(email) values
+  ('dextrim.0x@gmail.com'),
+  ('balcerzakagata8@gmail.com'),
+  ('mciporski@gmail.com'),
+  ('olgaziuz@gmail.com'),
+  ('gabriela.malyszko@gmail.com')
+on conflict (email) do nothing;
+
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
@@ -121,6 +134,37 @@ language sql stable security definer
 set search_path = public
 as $$ select boat_id from public.profiles where id = auth.uid() $$;
 
+create or replace function public.current_user_has_extra_access()
+returns boolean
+language sql stable security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from auth.users u
+    join public.privileged_user_emails e on lower(e.email) = lower(u.email)
+    where u.id = auth.uid()
+  )
+$$;
+
+create or replace function public.can_view_supplier_report()
+returns boolean
+language sql stable security definer
+set search_path = public
+as $$
+  select coalesce(public.current_app_role() in ('supplier','admin'), false)
+    or public.current_user_has_extra_access()
+$$;
+
+create or replace function public.can_manage_user_accounts()
+returns boolean
+language sql stable security definer
+set search_path = public
+as $$
+  select coalesce(public.current_app_role() = 'admin', false)
+    or public.current_user_has_extra_access()
+$$;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql security definer
@@ -154,6 +198,18 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+update public.profiles p
+set role = 'skipper'
+from auth.users u
+where u.id = p.id
+  and lower(u.email) in (
+    'dextrim.0x@gmail.com',
+    'balcerzakagata8@gmail.com',
+    'mciporski@gmail.com',
+    'olgaziuz@gmail.com',
+    'gabriela.malyszko@gmail.com'
+  );
+
 alter table public.boats enable row level security;
 alter table public.profiles enable row level security;
 alter table public.products enable row level security;
@@ -168,11 +224,11 @@ create policy "read products" on public.products for select to authenticated usi
 
 drop policy if exists "read profiles" on public.profiles;
 create policy "read profiles" on public.profiles for select to authenticated
-using (id = auth.uid() or public.current_app_role() in ('supplier','admin'));
+using (id = auth.uid() or public.can_view_supplier_report());
 
 drop policy if exists "read orders" on public.orders;
 create policy "read orders" on public.orders for select to authenticated
-using (boat_id = public.current_boat_id() or public.current_app_role() in ('supplier','admin'));
+using (boat_id = public.current_boat_id() or public.can_view_supplier_report());
 
 drop policy if exists "read order items" on public.order_items;
 create policy "read order items" on public.order_items for select to authenticated
@@ -180,7 +236,7 @@ using (
   exists (
     select 1 from public.orders o
     where o.id = order_id
-      and (o.boat_id = public.current_boat_id() or public.current_app_role() in ('supplier','admin'))
+      and (o.boat_id = public.current_boat_id() or public.can_view_supplier_report())
   )
 );
 
@@ -473,7 +529,7 @@ as $$
 declare
   result jsonb;
 begin
-  if public.current_app_role() not in ('supplier','admin') then
+  if not public.can_view_supplier_report() then
     raise exception 'Brak uprawnień do raportu.';
   end if;
 
@@ -570,13 +626,105 @@ begin
 end;
 $$;
 
+create or replace function public.list_user_accounts()
+returns jsonb
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  result jsonb;
+begin
+  if not public.can_manage_user_accounts() then
+    raise exception 'Brak uprawnień do zarządzania kontami.';
+  end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', u.id,
+    'email', u.email,
+    'full_name', p.full_name,
+    'role', p.role,
+    'boat_name', b.name,
+    'created_at', u.created_at
+  ) order by lower(u.email)), '[]'::jsonb)
+  into result
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  left join public.boats b on b.id = p.boat_id;
+
+  return result;
+end;
+$$;
+
+create or replace function public.delete_user_account(p_email text)
+returns jsonb
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_email text := lower(trim(p_email));
+  v_target_user uuid;
+  v_target_boat uuid;
+  v_boat_name text;
+begin
+  if not public.can_manage_user_accounts() then
+    raise exception 'Brak uprawnień do usuwania kont.';
+  end if;
+  if v_email is null or v_email = '' then
+    raise exception 'Podaj e-mail konta do usunięcia.';
+  end if;
+
+  select u.id, p.boat_id, b.name
+    into v_target_user, v_target_boat, v_boat_name
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  left join public.boats b on b.id = p.boat_id
+  where lower(u.email) = v_email;
+
+  if v_target_user is null then
+    raise exception 'Nie znaleziono konta o adresie %.', v_email;
+  end if;
+  if v_target_user = auth.uid() then
+    raise exception 'Nie możesz usunąć aktualnie zalogowanego konta.';
+  end if;
+
+  delete from public.order_items oi
+  using public.orders o
+  where oi.order_id = o.id
+    and (o.submitted_by = v_target_user or o.boat_id = v_target_boat);
+
+  delete from public.orders
+  where submitted_by = v_target_user or boat_id = v_target_boat;
+
+  delete from public.profiles where id = v_target_user;
+
+  if v_target_boat is not null and not exists (
+    select 1 from public.profiles where boat_id = v_target_boat
+  ) then
+    delete from public.boats where id = v_target_boat;
+  end if;
+
+  delete from auth.users where id = v_target_user;
+
+  return jsonb_build_object(
+    'deleted_email', v_email,
+    'deleted_user_id', v_target_user,
+    'deleted_boat_name', v_boat_name
+  );
+end;
+$$;
+
 grant execute on function public.submit_order(date,text,text,text[],jsonb,text) to authenticated;
 grant execute on function public.get_supplier_report(date) to authenticated;
+grant execute on function public.list_user_accounts() to authenticated;
+grant execute on function public.delete_user_account(text) to authenticated;
 grant execute on function public.save_diet_preferences(jsonb) to authenticated;
 grant execute on function public.save_crew_profile(jsonb,jsonb) to authenticated;
 grant execute on function public.start_new_turnus(text,jsonb,jsonb) to authenticated;
 grant execute on function public.current_app_role() to authenticated;
 grant execute on function public.current_boat_id() to authenticated;
+grant execute on function public.current_user_has_extra_access() to authenticated;
+grant execute on function public.can_view_supplier_report() to authenticated;
+grant execute on function public.can_manage_user_accounts() to authenticated;
 
 -- Po utworzeniu konta zaopatrzeniowca wykonaj, podmieniając adres.
 -- Dezaktywujemy techniczny jacht utworzony podczas rejestracji:

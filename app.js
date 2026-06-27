@@ -4,6 +4,13 @@ import { BREAKFAST_RECIPES, PRODUCTS as FALLBACK_PRODUCTS } from "./catalog.js";
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const views = ["#loadingView", "#setupView", "#authView", "#appView"];
+const PRIVILEGED_SKIPPER_EMAILS = new Set([
+  "dextrim.0x@gmail.com",
+  "balcerzakagata8@gmail.com",
+  "mciporski@gmail.com",
+  "olgaziuz@gmail.com",
+  "gabriela.malyszko@gmail.com",
+]);
 const state = {
   session: null,
   profile: null,
@@ -14,6 +21,7 @@ const state = {
   activePanel: "skipper",
   reportLocationFilter: "all",
   report: null,
+  userAccounts: [],
   demo: false,
   dirty: false,
   dietSetupRequired: false,
@@ -207,10 +215,26 @@ function roleName(role) {
   return ({ skipper: "sternik", supplier: "zaopatrzenie", admin: "administrator" })[role] || role;
 }
 
+function currentUserEmail() {
+  return String(state.session?.user?.email || "").trim().toLocaleLowerCase("pl");
+}
+
+function hasPrivilegedSkipperAccess() {
+  return PRIVILEGED_SKIPPER_EMAILS.has(currentUserEmail());
+}
+
+function canViewReport() {
+  return ["supplier", "admin"].includes(state.profile?.role) || hasPrivilegedSkipperAccess();
+}
+
+function canManageUsers() {
+  return state.profile?.role === "admin" || hasPrivilegedSkipperAccess();
+}
+
 function renderNavigation() {
   const nav = $("#appNav");
   const canOrder = ["skipper", "admin"].includes(state.profile.role);
-  const canReport = ["supplier", "admin"].includes(state.profile.role);
+  const canReport = canViewReport();
   nav.innerHTML = [
     canOrder ? `<button data-panel="skipper">Zamówienie jachtu</button>` : "",
     `<button data-panel="breakfast">Baza śniadań</button>`,
@@ -241,7 +265,9 @@ function switchPanel(panel) {
     $("#heroTitle").textContent = "Jedna lista. Cała flotylla.";
     $("#heroSubtitle").textContent = "Zakupy zbiorcze i osobne paczki dla każdego jachtu.";
     $("#reportDate").value ||= tomorrowDate();
+    renderUserAdmin();
     loadReport();
+    loadUserAccounts();
   }
 }
 
@@ -734,6 +760,77 @@ async function loadReport() {
   }
 }
 
+async function loadUserAccounts() {
+  if (!canManageUsers()) return;
+  const list = $("#userAdminList");
+  list.innerHTML = `<div class="empty">Ładowanie kont…</div>`;
+  try {
+    if (state.demo) {
+      state.userAccounts = [
+        { email: "sternik@example.com", full_name: "Sternik Demo", role: "skipper", boat_name: "Mewa" },
+        { email: "zaopatrzenie@example.com", full_name: "Zaopatrzenie Demo", role: "supplier", boat_name: "" },
+      ];
+    } else {
+      state.userAccounts = await api("/rest/v1/rpc/list_user_accounts", { method: "POST" });
+    }
+    renderUserAdmin();
+  } catch (error) {
+    list.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderUserAdmin() {
+  const card = $("#userAdminCard");
+  if (!card) return;
+  card.classList.toggle("hidden", !canManageUsers());
+  if (!canManageUsers()) return;
+  const accounts = state.userAccounts || [];
+  $("#userAdminList").innerHTML = accounts.length ? accounts.map((account) => `
+    <div class="user-account-row">
+      <div>
+        <strong>${escapeHtml(account.email)}</strong>
+        <small>${escapeHtml(account.full_name || "Bez nazwy")} · ${escapeHtml(roleName(account.role))}${account.boat_name ? ` · ${escapeHtml(account.boat_name)}` : ""}</small>
+      </div>
+      <button class="button ghost compact" type="button" data-delete-account="${escapeHtml(account.email)}">Usuń</button>
+    </div>
+  `).join("") : `<div class="empty">Brak kont do wyświetlenia.</div>`;
+}
+
+async function deleteUserAccount(emailFromButton = "") {
+  if (!canManageUsers()) return;
+  const email = String(emailFromButton || $("#deleteUserEmail").value || "").trim().toLocaleLowerCase("pl");
+  if (!email) {
+    toast("Podaj e-mail konta do usunięcia.", true);
+    return;
+  }
+  if (email === currentUserEmail()) {
+    toast("Nie możesz usunąć aktualnie zalogowanego konta.", true);
+    return;
+  }
+  const confirmed = window.confirm(
+    `Czy na pewno całkowicie usunąć konto ${email}?\n\n`
+    + "Usunięte zostaną konto logowania, profil sternika, jego jacht oraz zamówienia tego jachtu. Tej operacji nie da się cofnąć.",
+  );
+  if (!confirmed) return;
+  const button = $("#deleteUserButton");
+  button.disabled = true;
+  button.textContent = "Usuwanie…";
+  try {
+    if (!state.demo) {
+      await api("/rest/v1/rpc/delete_user_account", { method: "POST", body: { p_email: email } });
+    }
+    $("#deleteUserEmail").value = "";
+    toast(`Konto ${email} zostało usunięte.`);
+    await loadUserAccounts();
+    if (state.activePanel === "supplier") await loadReport();
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Usuń konto";
+  }
+}
+
 function reportFilteredBoats(report = state.report) {
   const boats = report?.boats || [];
   if (state.reportLocationFilter === "all") return boats;
@@ -870,6 +967,13 @@ function bindEvents() {
     if (!button) return;
     state.reportLocationFilter = button.dataset.reportLocation;
     renderReport();
+  });
+  $("#refreshUsersButton").addEventListener("click", loadUserAccounts);
+  $("#deleteUserButton").addEventListener("click", () => deleteUserAccount());
+  $("#userAdminList").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-delete-account]");
+    if (!button) return;
+    deleteUserAccount(button.dataset.deleteAccount);
   });
   $("#refreshReportButton").addEventListener("click", loadReport);
   $("#reportDate").addEventListener("change", loadReport);
