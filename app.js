@@ -192,7 +192,7 @@ function openApp() {
   $("#userLabel").textContent = `${state.profile.full_name} · ${state.profile.boats?.name || roleName(state.profile.role)}`;
   $("#newTurnusButton").classList.toggle(
     "hidden",
-    !["skipper", "admin"].includes(state.profile.role) || !state.profile.boat_id,
+    !["skipper", "admin"].includes(state.profile.role),
   );
   renderNavigation();
   setupOrderPanel();
@@ -235,10 +235,12 @@ function renderNavigation() {
   const nav = $("#appNav");
   const canOrder = ["skipper", "admin"].includes(state.profile.role);
   const canReport = canViewReport();
+  const canDeleteUsers = canManageUsers();
   nav.innerHTML = [
     canOrder ? `<button data-panel="skipper">Zamówienie jachtu</button>` : "",
     `<button data-panel="breakfast">Baza śniadań</button>`,
     canReport ? `<button data-panel="supplier">Raport zaopatrzenia</button>` : "",
+    canDeleteUsers ? `<button data-panel="users">Usuwanie kont</button>` : "",
   ].join("");
   nav.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => switchPanel(button.dataset.panel)));
 }
@@ -248,7 +250,8 @@ function switchPanel(panel) {
   $("#skipperPanel").classList.toggle("hidden", panel !== "skipper");
   $("#breakfastPanel").classList.toggle("hidden", panel !== "breakfast");
   $("#supplierPanel").classList.toggle("hidden", panel !== "supplier");
-  $("#deadlineCard").classList.toggle("hidden", panel === "breakfast");
+  $("#userAdminPanel").classList.toggle("hidden", panel !== "users");
+  $("#deadlineCard").classList.toggle("hidden", panel !== "skipper");
   $$("#appNav button").forEach((button) => button.classList.toggle("active", button.dataset.panel === panel));
   if (panel === "skipper") {
     $("#roleEyebrow").textContent = "Panel sternika";
@@ -260,13 +263,17 @@ function switchPanel(panel) {
     $("#heroTitle").textContent = "Pomysły do jachtowego kambuzu";
     $("#heroSubtitle").textContent = "Przepisy stworzone z myślą o małej kuchni, jednej patelni i głodnej załodze.";
     renderRecipes();
-  } else {
+  } else if (panel === "supplier") {
     $("#roleEyebrow").textContent = "Panel zaopatrzeniowca";
     $("#heroTitle").textContent = "Jedna lista. Cała flotylla.";
     $("#heroSubtitle").textContent = "Zakupy zbiorcze i osobne paczki dla każdego jachtu.";
     $("#reportDate").value ||= tomorrowDate();
-    renderUserAdmin();
     loadReport();
+  } else if (panel === "users") {
+    $("#roleEyebrow").textContent = "Zarządzanie kontami";
+    $("#heroTitle").textContent = "Usuwanie użytkowników";
+    $("#heroSubtitle").textContent = "Panel dla wybranych sterników i administratorów.";
+    renderUserAdmin();
     loadUserAccounts();
   }
 }
@@ -511,10 +518,10 @@ async function saveDietPreferences(event) {
   try {
     if (state.newTurnusMode) {
       const currentBoatName = state.profile.boats?.name || "obecny jacht";
-      const confirmed = window.confirm(
-        `Czy na pewno rozpocząć nowy turnus na jachcie „${newBoatName}”?\n\n`
-        + `Jacht „${currentBoatName}” zostanie zdezaktywowany, a bieżąca lista zamówienia zostanie wyczyszczona. Historii poprzedniego turnusu nie usuniemy.`,
-      );
+      const confirmDetails = state.profile.boat_id
+        ? `Jacht „${currentBoatName}” zostanie zdezaktywowany, a bieżąca lista zamówienia zostanie wyczyszczona. Historii poprzedniego turnusu nie usuniemy.`
+        : "Konto zostanie przypisane do nowego jachtu i od tej chwili będzie mogło składać zamówienia.";
+      const confirmed = window.confirm(`Czy na pewno rozpocząć nowy turnus na jachcie „${newBoatName}”?\n\n${confirmDetails}`);
       if (!confirmed) {
         button.disabled = false;
         button.textContent = "Rozpocznij nowy turnus";
@@ -678,6 +685,12 @@ function updateOrderSummary() {
 async function loadMyOrder() {
   state.quantities.clear();
   $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
+  $("#specialRequests").value = "";
+  if (!state.profile.boat_id) {
+    state.dirty = false;
+    renderProducts();
+    return;
+  }
   if (state.demo) {
     [["demo-34", 20], ["demo-5", 7], ["demo-64", 8], ["demo-47", 2]].forEach(([id, qty]) => state.quantities.set(id, qty));
     $("#specialRequests").value = "Zgrzewka wody gazowanej";
@@ -687,7 +700,7 @@ async function loadMyOrder() {
     return;
   }
   try {
-    const rows = await api(`/rest/v1/orders?select=id,special_requests,location,submitted_at,order_items(product_id,quantity)&target_date=eq.${tomorrowDate()}&limit=1`);
+    const rows = await api(`/rest/v1/orders?select=id,special_requests,location,submitted_at,order_items(product_id,quantity)&target_date=eq.${tomorrowDate()}&boat_id=eq.${state.profile.boat_id}&limit=1`);
     const order = rows[0];
     if (order) {
       order.order_items.forEach((item) => state.quantities.set(item.product_id, Number(item.quantity)));
@@ -703,6 +716,11 @@ async function loadMyOrder() {
 }
 
 async function submitOrder() {
+  if (!state.profile.boat_id) {
+    openNewTurnusModal();
+    toast("Najpierw rozpocznij turnus i przypisz konto do jachtu.", true);
+    return;
+  }
   if (!state.profile.diet_preferences || !state.profile.boats?.crew_profile) {
     openDietModal(true);
     toast("Przed pierwszym zamówieniem uzupełnij profil jachtu i załogi.", true);
@@ -985,7 +1003,14 @@ function bindEvents() {
     $("#toggleBoatPackagesLabel").textContent = shouldOpen ? "Zwiń wszystkie" : "Rozwiń wszystkie";
   });
   $("#submitOrderButton").addEventListener("click", submitOrder);
-  $("#editDietsButton").addEventListener("click", () => openDietModal(false));
+  $("#editDietsButton").addEventListener("click", () => {
+    if (!state.profile.boat_id) {
+      openNewTurnusModal();
+      toast("Najpierw rozpocznij turnus i przypisz konto do jachtu.", true);
+      return;
+    }
+    openDietModal(false);
+  });
   $("#newTurnusButton").addEventListener("click", openNewTurnusModal);
   $("#closeDietModalButton").addEventListener("click", closeDietModal);
   $("#dietForm").addEventListener("submit", saveDietPreferences);

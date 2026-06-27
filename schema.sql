@@ -371,7 +371,7 @@ begin
   select role, boat_id into v_role, v_old_boat_id
   from public.profiles where id = auth.uid();
 
-  if v_role not in ('skipper', 'admin') or v_old_boat_id is null then
+  if v_role not in ('skipper', 'admin') then
     raise exception 'Tylko sternik przypisany do jachtu może rozpocząć nowy turnus.';
   end if;
   if v_boat_name is null or length(v_boat_name) < 2 then
@@ -421,7 +421,9 @@ begin
     raise exception 'Liczba osób na diecie nie może przekraczać liczby osób w załodze.';
   end if;
 
-  update public.boats set active = false where id = v_old_boat_id;
+  if v_old_boat_id is not null then
+    update public.boats set active = false where id = v_old_boat_id;
+  end if;
 
   begin
     insert into public.boats(name, crew_profile, active) values (v_boat_name, p_crew_profile, true)

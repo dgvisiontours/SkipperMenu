@@ -152,7 +152,8 @@ Hosting musi działać przez HTTPS — Netlify zapewnia go automatycznie.
    - widzi, które jachty nie złożyły zamówienia.
 
 Wybrane konta sterników z listy w `schema.sql` pozostają zwykłymi sternikami, ale w aplikacji widzą
-również raport zaopatrzenia oraz panel usuwania kont użytkowników.
+również raport zaopatrzenia oraz osobną zakładkę **Usuwanie kont**. Jeśli takie konto nie ma jeszcze
+przypisanego jachtu, może użyć przycisku **Nowy turnus**, który utworzy i przypisze nowy jacht.
 
 ## Rozpoczęcie kolejnego turnusu
 
