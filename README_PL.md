@@ -8,16 +8,16 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - ilości, kategorie, wyszukiwarka oraz jednostki;
 - osobna baza śniadań z przepisami, składnikami i wskazówkami do przygotowania na jachcie;
 - obowiązkowy profil diet załogi przed pierwszym zamówieniem: wege, bez laktozy, bez glutenu i inne;
-- obowiązkowy typ jachtu (rekreacyjny lub szkoleniowy) oraz liczebność załogi z podziałem na kobiety i mężczyzn;
+- obowiązkowy typ jachtu (rekreacyjny, szkoleniowy lub wyprawowy) oraz liczebność załogi z podziałem na kobiety i mężczyzn;
 - możliwość późniejszej edycji diet oraz specjalne prośby w zamówieniu;
 - przycisk **Nowy turnus**, który bez tworzenia nowego konta zmienia jacht i profil diet załogi;
 - obowiązkowy wybór miejsca przy zamówieniu: **W Rejsie** albo **W Zofiówce**;
 - panel zaopatrzeniowca pokazujący miejsce każdego jachtu i łączną liczbę osób na aktywnych jachtach;
 - zbiorcze podsumowanie liczby osób na poszczególnych dietach;
 - dodatkowe potwierdzenie przed rozpoczęciem nowego turnusu;
-- jedno zamówienie jachtu na następny dzień, z możliwością poprawiania wyłącznie między 10:00 a 21:00;
-- blokada przed 10:00 i po 21:00 egzekwowana również w bazie danych;
-- panel zaopatrzeniowca: suma produktów, rozpiska na jachty, brakujące zamówienia;
+- jedno zamówienie jachtu na następny dzień, z możliwością poprawiania wyłącznie między 09:00 a 16:00;
+- blokada przed 09:00 i po 16:00 egzekwowana również w bazie danych;
+- panel zaopatrzeniowca: suma produktów z filtrem wszystko / W Rejsie / W Zofiówce / Wyprawa, rozpiska na jachty, brakujące zamówienia;
 - eksport listy zakupów do CSV i drukowanie/zapis do PDF;
 - logowanie i role: sternik, zaopatrzeniowiec, administrator;
 - instalacja jako PWA na iOS i Androidzie.
@@ -65,8 +65,8 @@ export const CONFIG = {
   SUPABASE_ANON_KEY: "eyJhbGciOi...",
   DEMO_MODE: false,
   TIMEZONE: "Europe/Warsaw",
-  ORDER_OPEN_HOUR: 10,
-  CUTOFF_HOUR: 21,
+  ORDER_OPEN_HOUR: 9,
+  CUTOFF_HOUR: 16,
 };
 ```
 
@@ -142,9 +142,9 @@ Hosting musi działać przez HTTPS — Netlify zapewnia go automatycznie.
 ## Codzienny sposób pracy
 
 1. Sternik omawia z załogą potrzeby na następny dzień.
-2. Między 10:00 a 21:00 wybiera produkty, wpisuje ilości i specjale.
+2. Między 09:00 a 16:00 wybiera produkty, wpisuje ilości i specjale.
 3. Może zapisywać poprawki wielokrotnie; liczy się ostatnia wersja.
-4. Przed 10:00 i po 21:00 konto sternika nie może zmienić zamówienia.
+4. Przed 09:00 i po 16:00 konto sternika nie może zmienić zamówienia.
 5. Zaopatrzeniowiec otwiera raport na dzień wydania:
    - kupuje według listy skonsolidowanej;
    - pakuje produkty według kart poszczególnych jachtów;

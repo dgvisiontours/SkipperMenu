@@ -77,6 +77,7 @@ insert into public.products (name, category, unit, sort_order) values
 ('Ser wegański','Nabiał i zamienniki','opak.',13),
 ('Twaróg chudy/tłusty/półtłusty','Nabiał i zamienniki','opak.',14),
 ('Twarożek kanapkowy śmietankowy','Nabiał i zamienniki','opak.',15),
+('Twarożek Grani','Nabiał i zamienniki','opak.',16),
 ('Hummus','Nabiał i zamienniki','opak.',16),('Serek wiejski','Nabiał i zamienniki','szt.',17),
 ('Skyr Naturalny','Nabiał i zamienniki','szt.',18),('Skyr owocowy','Nabiał i zamienniki','szt.',19),
 ('Skyr waniliowy','Nabiał i zamienniki','szt.',20),('Passata pomidorowa','Dodatki','szt.',21),
@@ -84,9 +85,9 @@ insert into public.products (name, category, unit, sort_order) values
 ('Schab w plastrach','Mięso i zamienniki','opak.',24),('Salami','Mięso i zamienniki','opak.',25),
 ('Kabanosy','Mięso i zamienniki','opak.',26),('Boczek','Mięso i zamienniki','opak.',27),
 ('Parówki','Mięso i zamienniki','szt.',28),('Pasztet','Mięso i zamienniki','opak.',29),
-('Ryba wędzona','Mięso i zamienniki','opak.',30),('Wege parówki','Mięso i zamienniki','opak.',31),
+('Wege parówki','Mięso i zamienniki','opak.',31),
 ('Wege kabanosy','Mięso i zamienniki','opak.',32),('Wege szynka','Mięso i zamienniki','opak.',33),
-('Jajka','Nabiał i zamienniki','szt.',34),('Pomidory','Warzywa','szt.',35),
+('Jajka','Nabiał i zamienniki','paczka',34),('Pomidory','Warzywa','szt.',35),
 ('Ogórki','Warzywa','szt.',36),('Papryka','Warzywa','szt.',37),('Sałata','Warzywa','szt.',38),
 ('Rukola','Warzywa','opak.',39),('Rzodkiewki','Warzywa','pęczek',40),
 ('Szczypiorek','Warzywa','pęczek',41),('Cebula czerwona/żółta','Warzywa','szt.',42),
@@ -104,6 +105,9 @@ insert into public.products (name, category, unit, sort_order) values
 ('Gruszki','Owoce','szt.',66),('Winogrona','Owoce','opak.',67),('Truskawki','Owoce','opak.',68)
 on conflict (name) do update set
   category = excluded.category, unit = excluded.unit, sort_order = excluded.sort_order;
+
+update public.products set active = false where name = 'Ryba wędzona';
+update public.products set unit = 'paczka' where name = 'Jajka';
 
 create or replace function public.current_app_role()
 returns public.app_role
@@ -259,7 +263,7 @@ declare
 begin
   select boat_id into v_boat_id from public.profiles where id = auth.uid();
   if v_boat_id is null then raise exception 'Konto nie jest przypisane do jachtu.'; end if;
-  if v_boat_type not in ('recreational', 'training') then
+  if v_boat_type not in ('recreational', 'training', 'expedition') then
     raise exception 'Wybierz typ jachtu.';
   end if;
   if v_total < 1 or v_women < 0 or v_men < 0 or v_women + v_men <> v_total then
@@ -317,7 +321,7 @@ begin
   if v_boat_name is null or length(v_boat_name) < 2 then
     raise exception 'Podaj nazwę jachtu.';
   end if;
-  if v_boat_type not in ('recreational', 'training') then
+  if v_boat_type not in ('recreational', 'training', 'expedition') then
     raise exception 'Wybierz typ jachtu.';
   end if;
   if v_total < 1 or v_women < 0 or v_men < 0 or v_women + v_men <> v_total then
@@ -423,11 +427,11 @@ begin
     if p_target_date <> v_local_now::date + 1 then
       raise exception 'Sternik może zamówić wyłącznie na następny dzień.';
     end if;
-    if v_local_now::time < time '10:00' then
-      raise exception 'Zamówienia można zmieniać od 10:00.';
+    if v_local_now::time < time '09:00' then
+      raise exception 'Zamówienia można zmieniać od 09:00.';
     end if;
-    if v_local_now::time >= time '21:00' then
-      raise exception 'Termin składania zamówień minął o 21:00.';
+    if v_local_now::time >= time '16:00' then
+      raise exception 'Termin składania zamówień minął o 16:00.';
     end if;
   end if;
 
@@ -531,7 +535,7 @@ begin
         ) as row_data
         from public.order_items oi
         join public.orders o on o.id = oi.order_id and o.target_date = p_target_date
-        join public.products p on p.id = oi.product_id
+        join public.products p on p.id = oi.product_id and p.active
         join public.boats b on b.id = o.boat_id
         group by p.id, p.name, p.unit, p.sort_order
       ) q
@@ -551,7 +555,7 @@ begin
           'items', coalesce((
             select jsonb_agg(jsonb_build_array(p.name, oi.quantity, p.unit) order by p.sort_order)
             from public.order_items oi
-            join public.products p on p.id = oi.product_id
+            join public.products p on p.id = oi.product_id and p.active
             where oi.order_id = o.id
           ), '[]'::jsonb)
         ) as boat_data

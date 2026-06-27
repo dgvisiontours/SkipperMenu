@@ -155,6 +155,10 @@ h3 { font-size: 23px; }
 .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 16px; scrollbar-width: none; }
 .chip { flex: 0 0 auto; border: 1px solid #cbd4d1; background: #fff; color: var(--muted); border-radius: 999px; padding: 8px 12px; }
 .chip.active { color: #fff; background: var(--sea-2); border-color: var(--sea-2); }
+.order-hint {
+  margin: -4px 0 14px; padding: 10px 12px; color: #5c4710; background: #fff3cf;
+  border: 1px solid #f3d46a; border-radius: 12px; font-size: 12px; line-height: 1.4;
+}
 .product-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .product-row {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
@@ -273,6 +277,11 @@ h3 { font-size: 23px; }
 .report-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; }
 .report-card { overflow: hidden; box-shadow: none; }
 .card-heading { padding: 20px; border-bottom: 1px solid var(--line); }
+.report-location-tabs { padding: 14px 20px 4px; border-bottom: 1px solid var(--line); }
+.special-requests-summary { padding: 16px 20px 20px; border-top: 1px solid var(--line); background: #fffdf8; }
+.special-requests-summary h4 { margin: 0 0 10px; font: 900 16px Arial, sans-serif; color: var(--sea); }
+.special-requests-summary ul { margin: 0; padding-left: 18px; color: #40575b; line-height: 1.55; }
+.special-requests-summary li { margin-bottom: 6px; }
 .toggle-heading {
   display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 16px;
   color: inherit; background: transparent; border-width: 0 0 1px; text-align: left; cursor: pointer;
