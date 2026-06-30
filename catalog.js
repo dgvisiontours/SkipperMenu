@@ -115,7 +115,7 @@ export const PRODUCTS = [
   ["Suszone pomidory", "Dodatki", "słoik"],
   ["Szynka", "Mięso i zamienniki", "opak."], ["Schab w plastrach", "Mięso i zamienniki", "opak."],
   ["Salami", "Mięso i zamienniki", "opak."], ["Kabanosy", "Mięso i zamienniki", "opak."],
-  ["Boczek", "Mięso i zamienniki", "opak."], ["Parówki", "Mięso i zamienniki", "szt."],
+  ["Boczek", "Mięso i zamienniki", "opak."], ["Parówki", "Mięso i zamienniki", "paczka 12 szt."],
   ["Pasztet", "Mięso i zamienniki", "opak."],
   ["Wege parówki", "Mięso i zamienniki", "opak."], ["Wege kabanosy", "Mięso i zamienniki", "opak."],
   ["Wege szynka", "Mięso i zamienniki", "opak."], ["Jajka", "Nabiał i zamienniki", "paczka"],

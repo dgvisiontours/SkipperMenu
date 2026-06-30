@@ -4,5 +4,5 @@ export const CONFIG = {
   DEMO_MODE: false,
   TIMEZONE: "Europe/Warsaw",
   ORDER_OPEN_HOUR: 9,
-  CUTOFF_HOUR: 16,
+  CUTOFF_HOUR: 15,
 };

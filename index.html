@@ -77,7 +77,7 @@
           </div>
           <div id="deadlineCard" class="deadline-card">
             <span>Termin</span>
-            <strong id="deadlineTime">09:00–16:00</strong>
+            <strong id="deadlineTime">09:00–15:00</strong>
             <small id="deadlineStatus"></small>
           </div>
         </div>
@@ -102,7 +102,7 @@
           </div>
 
           <div id="categoryFilters" class="chips"></div>
-          <div class="order-hint">Pamiętajcie, że pieczywo zamawiamy z dwudniowym wyprzedzeniem.</div>
+          <div class="order-hint">Pamiętajcie, że produkty z kategorii „Pieczywo” trafiają na listę zaopatrzeniową dzień później niż reszta zamówienia.</div>
           <div id="productList" class="product-list"></div>
 
           <div class="notes-grid">
@@ -157,6 +157,18 @@
           </div>
           <div id="recipeFilters" class="chips recipe-filters"></div>
           <div id="recipeList" class="recipe-list"></div>
+        </section>
+
+        <section id="historyPanel" class="panel hidden">
+          <div class="report-toolbar">
+            <div>
+              <span class="section-kicker">Historia sternika</span>
+              <h2>Twoje paczki z zamówień</h2>
+              <p>Lista wcześniejszych dostaw dla Twojego jachtu — do sprawdzania zgodności z wydaniem.</p>
+            </div>
+            <button id="refreshHistoryButton" class="button secondary" type="button">Odśwież</button>
+          </div>
+          <div id="orderHistoryList" class="boat-packages"></div>
         </section>
 
         <section id="supplierPanel" class="panel hidden">

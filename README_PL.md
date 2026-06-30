@@ -15,9 +15,11 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - panel zaopatrzeniowca pokazujący miejsce każdego jachtu i łączną liczbę osób na aktywnych jachtach;
 - zbiorcze podsumowanie liczby osób na poszczególnych dietach;
 - dodatkowe potwierdzenie przed rozpoczęciem nowego turnusu;
-- jedno zamówienie jachtu na następny dzień, z możliwością poprawiania wyłącznie między 09:00 a 16:00;
-- blokada przed 09:00 i po 16:00 egzekwowana również w bazie danych;
+- jedno zamówienie jachtu na następny dzień, z możliwością poprawiania wyłącznie między 09:00 a 15:00;
+- blokada przed 09:00 i po 15:00 egzekwowana również w bazie danych;
 - panel zaopatrzeniowca: suma produktów z filtrem wszystko / W Rejsie / W Zofiówce / Wyprawa, rozpiska na jachty, brakujące zamówienia;
+- lista zaopatrzeniowa pogrupowana kategoriami; produkty z kategorii **Pieczywo** trafiają na raport dzień później niż reszta zamówienia;
+- historia zamówień sternika pokazująca wcześniejsze paczki do kontroli dostawy;
 - eksport listy zakupów do CSV i drukowanie/zapis do PDF;
 - logowanie i role: sternik, zaopatrzeniowiec, administrator;
 - wybrane konta sterników mogą dodatkowo widzieć raport zaopatrzenia i usuwać konta użytkowników;
@@ -67,7 +69,7 @@ export const CONFIG = {
   DEMO_MODE: false,
   TIMEZONE: "Europe/Warsaw",
   ORDER_OPEN_HOUR: 9,
-  CUTOFF_HOUR: 16,
+  CUTOFF_HOUR: 15,
 };
 ```
 
@@ -143,9 +145,9 @@ Hosting musi działać przez HTTPS — Netlify zapewnia go automatycznie.
 ## Codzienny sposób pracy
 
 1. Sternik omawia z załogą potrzeby na następny dzień.
-2. Między 09:00 a 16:00 wybiera produkty, wpisuje ilości i specjale.
+2. Między 09:00 a 15:00 wybiera produkty, wpisuje ilości i specjale.
 3. Może zapisywać poprawki wielokrotnie; liczy się ostatnia wersja.
-4. Przed 09:00 i po 16:00 konto sternika nie może zmienić zamówienia.
+4. Przed 09:00 i po 15:00 konto sternika nie może zmienić zamówienia.
 5. Zaopatrzeniowiec otwiera raport na dzień wydania:
    - kupuje według listy skonsolidowanej;
    - pakuje produkty według kart poszczególnych jachtów;

@@ -97,7 +97,7 @@ insert into public.products (name, category, unit, sort_order) values
 ('Suszone pomidory','Dodatki','słoik',22),('Szynka','Mięso i zamienniki','opak.',23),
 ('Schab w plastrach','Mięso i zamienniki','opak.',24),('Salami','Mięso i zamienniki','opak.',25),
 ('Kabanosy','Mięso i zamienniki','opak.',26),('Boczek','Mięso i zamienniki','opak.',27),
-('Parówki','Mięso i zamienniki','szt.',28),('Pasztet','Mięso i zamienniki','opak.',29),
+('Parówki','Mięso i zamienniki','paczka 12 szt.',28),('Pasztet','Mięso i zamienniki','opak.',29),
 ('Wege parówki','Mięso i zamienniki','opak.',31),
 ('Wege kabanosy','Mięso i zamienniki','opak.',32),('Wege szynka','Mięso i zamienniki','opak.',33),
 ('Jajka','Nabiał i zamienniki','paczka',34),('Pomidory','Warzywa','szt.',35),
@@ -121,6 +121,7 @@ on conflict (name) do update set
 
 update public.products set active = false where name = 'Ryba wędzona';
 update public.products set unit = 'paczka' where name = 'Jajka';
+update public.products set unit = 'paczka 12 szt.' where name = 'Parówki';
 
 create or replace function public.current_app_role()
 returns public.app_role
@@ -488,8 +489,8 @@ begin
     if v_local_now::time < time '09:00' then
       raise exception 'Zamówienia można zmieniać od 09:00.';
     end if;
-    if v_local_now::time >= time '16:00' then
-      raise exception 'Termin składania zamówień minął o 16:00.';
+    if v_local_now::time >= time '15:00' then
+      raise exception 'Termin składania zamówień minął o 15:00.';
     end if;
   end if;
 
@@ -587,15 +588,20 @@ begin
       from (
         select p.sort_order, jsonb_build_object(
           'product_name', p.name,
+          'category', p.category,
           'unit', p.unit,
           'total_quantity', sum(oi.quantity),
           'boats', jsonb_agg(b.name || ': ' || trim(to_char(oi.quantity, 'FM999999990.##')) order by b.name)
         ) as row_data
         from public.order_items oi
-        join public.orders o on o.id = oi.order_id and o.target_date = p_target_date
         join public.products p on p.id = oi.product_id and p.active
+        join public.orders o on o.id = oi.order_id
+          and (
+            (p.category = 'Pieczywo' and o.target_date = p_target_date - 1)
+            or (p.category <> 'Pieczywo' and o.target_date = p_target_date)
+          )
         join public.boats b on b.id = o.boat_id
-        group by p.id, p.name, p.unit, p.sort_order
+        group by p.id, p.name, p.category, p.unit, p.sort_order
       ) q
     ), '[]'::jsonb),
     'boats', coalesce((
@@ -604,23 +610,43 @@ begin
         select b.name as boat_name, jsonb_build_object(
           'boat_name', b.name,
           'skipper_name', pr.full_name,
-          'submitted_at', o.submitted_at,
-          'location', o.location,
+          'submitted_at', o_current.submitted_at,
+          'location', o_current.location,
           'crew_profile', b.crew_profile,
-          'diet_notes', o.diet_notes,
-          'special_requests', o.special_requests,
-          'breakfast_choices', o.breakfast_choices,
+          'diet_notes', o_current.diet_notes,
+          'special_requests', o_current.special_requests,
+          'breakfast_choices', coalesce(o_current.breakfast_choices, '{}'),
           'items', coalesce((
-            select jsonb_agg(jsonb_build_array(p.name, oi.quantity, p.unit) order by p.sort_order)
+            select jsonb_agg(jsonb_build_array(p.name, oi.quantity, p.unit, p.category, p.sort_order) order by p.sort_order)
             from public.order_items oi
             join public.products p on p.id = oi.product_id and p.active
-            where oi.order_id = o.id
+            join public.orders o_items on o_items.id = oi.order_id
+            where o_items.boat_id = b.id
+              and (
+                (p.category = 'Pieczywo' and o_items.target_date = p_target_date - 1)
+                or (p.category <> 'Pieczywo' and o_items.target_date = p_target_date)
+              )
           ), '[]'::jsonb)
         ) as boat_data
-        from public.orders o
-        join public.boats b on b.id = o.boat_id
-        left join public.profiles pr on pr.id = o.submitted_by
-        where o.target_date = p_target_date
+        from public.boats b
+        left join public.orders o_current on o_current.boat_id = b.id and o_current.target_date = p_target_date
+        left join public.profiles pr on pr.id = coalesce(o_current.submitted_by, (
+          select o_prev.submitted_by
+          from public.orders o_prev
+          where o_prev.boat_id = b.id and o_prev.target_date = p_target_date - 1
+          limit 1
+        ))
+        where exists (
+          select 1
+          from public.order_items oi
+          join public.products p on p.id = oi.product_id and p.active
+          join public.orders o_items on o_items.id = oi.order_id
+          where o_items.boat_id = b.id
+            and (
+              (p.category = 'Pieczywo' and o_items.target_date = p_target_date - 1)
+              or (p.category <> 'Pieczywo' and o_items.target_date = p_target_date)
+            )
+        )
       ) q
     ), '[]'::jsonb)
   ) into result;

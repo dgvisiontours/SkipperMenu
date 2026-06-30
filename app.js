@@ -21,6 +21,7 @@ const state = {
   activePanel: "skipper",
   reportLocationFilter: "all",
   report: null,
+  orderHistory: [],
   userAccounts: [],
   demo: false,
   dirty: false,
@@ -43,7 +44,7 @@ const DEMO_REPORT = {
   ],
   consolidated: [
     { product_name: "Jajka", unit: "paczka", total_quantity: 8, boats: ["Bajka: 2", "Bryza: 2", "Czapla: 2", "Delfin: 2"] },
-    { product_name: "Parówki", unit: "szt.", total_quantity: 44, boats: ["Bajka: 14", "Bryza: 20", "Czapla: 10"] },
+    { product_name: "Parówki", category: "Mięso i zamienniki", unit: "paczka 12 szt.", total_quantity: 4, boats: ["Bajka: 2", "Bryza: 1", "Czapla: 1"] },
     { product_name: "Banany", unit: "szt.", total_quantity: 22, boats: ["Bryza: 4", "Czapla: 4", "Delfin: 7", "Foka: 7"] },
     { product_name: "Skyr owocowy", unit: "szt.", total_quantity: 14, boats: ["Delfin: 7", "Foka: 7"] },
     { product_name: "Bułki kajzerki", unit: "szt.", total_quantity: 21, boats: ["Bajka: 7", "Delfin: 7", "Foka: 7"] },
@@ -51,9 +52,9 @@ const DEMO_REPORT = {
     { product_name: "Mleko", unit: "l", total_quantity: 4, boats: ["Bajka: 1", "Czapla: 2", "Foka: 1"] },
   ],
   boats: [
-    { boat_name: "Bajka", skipper_name: "Maciek", location: "cruise", crew_profile: { total: 8 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "Woda smakowa, bułki hot dog", items: [["Parówki", 14, "szt."], ["Jajka", 2, "paczka"], ["Mleko", 1, "l"]] },
+    { boat_name: "Bajka", skipper_name: "Maciek", location: "cruise", crew_profile: { total: 8 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "Woda smakowa, bułki hot dog", items: [["Parówki", 2, "paczka 12 szt.", "Mięso i zamienniki"], ["Jajka", 2, "paczka", "Nabiał i zamienniki"], ["Mleko", 1, "l", "Śniadaniowe"]] },
     { boat_name: "Bryza", skipper_name: "Kuba", location: "zofiowka", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "1 osoba bez laktozy", special_requests: "Cytryny, woda gazowana", items: [["Bułki kajzerki", 7, "szt."], ["Jajka", 2, "paczka"], ["Banany", 4, "szt."]] },
-    { boat_name: "Czapla", skipper_name: "Oliwka", location: "cruise", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "2 wege", special_requests: "Kawa rozpuszczalna", items: [["Jajka", 2, "paczka"], ["Parówki", 10, "szt."], ["Mleko", 2, "l"]] },
+    { boat_name: "Czapla", skipper_name: "Oliwka", location: "cruise", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "2 wege", special_requests: "Kawa rozpuszczalna", items: [["Jajka", 2, "paczka", "Nabiał i zamienniki"], ["Parówki", 1, "paczka 12 szt.", "Mięso i zamienniki"], ["Mleko", 2, "l", "Śniadaniowe"]] },
     { boat_name: "Delfin", skipper_name: "Rafał", location: "cruise", crew_profile: { total: 8 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "", items: [["Jajka", 2, "paczka"], ["Banany", 7, "szt."], ["Skyr owocowy", 7, "szt."]] },
     { boat_name: "Foka", skipper_name: "Olga", location: "zofiowka", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "1 wege", special_requests: "Brzoskwinie", items: [["Bułki kajzerki", 7, "szt."], ["Banany", 7, "szt."], ["Skyr owocowy", 7, "szt."]] },
     { boat_name: "Goplana", skipper_name: "Krzysiu", location: "cruise", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "Kawa rozpuszczalna", items: [["Bułki kajzerki", 7, "szt."], ["Awokado", 2, "szt."], ["Mleko", 1, "l"]] },
@@ -100,6 +101,12 @@ function todayDate() {
 function tomorrowDate() {
   const [year, month, day] = todayDate().split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day + 1));
+  return date.toISOString().slice(0, 10);
+}
+
+function shiftDate(dateString, days) {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
   return date.toISOString().slice(0, 10);
 }
 
@@ -238,6 +245,7 @@ function renderNavigation() {
   const canDeleteUsers = canManageUsers();
   nav.innerHTML = [
     canOrder ? `<button data-panel="skipper">Zamówienie jachtu</button>` : "",
+    canOrder ? `<button data-panel="history">Historia zamówień</button>` : "",
     `<button data-panel="breakfast">Baza śniadań</button>`,
     canReport ? `<button data-panel="supplier">Raport zaopatrzenia</button>` : "",
     canDeleteUsers ? `<button data-panel="users">Usuwanie kont</button>` : "",
@@ -248,6 +256,7 @@ function renderNavigation() {
 function switchPanel(panel) {
   state.activePanel = panel;
   $("#skipperPanel").classList.toggle("hidden", panel !== "skipper");
+  $("#historyPanel").classList.toggle("hidden", panel !== "history");
   $("#breakfastPanel").classList.toggle("hidden", panel !== "breakfast");
   $("#supplierPanel").classList.toggle("hidden", panel !== "supplier");
   $("#userAdminPanel").classList.toggle("hidden", panel !== "users");
@@ -263,6 +272,11 @@ function switchPanel(panel) {
     $("#heroTitle").textContent = "Pomysły do jachtowego kambuzu";
     $("#heroSubtitle").textContent = "Przepisy stworzone z myślą o małej kuchni, jednej patelni i głodnej załodze.";
     renderRecipes();
+  } else if (panel === "history") {
+    $("#roleEyebrow").textContent = "Historia sternika";
+    $("#heroTitle").textContent = "Twoje wcześniejsze paczki";
+    $("#heroSubtitle").textContent = `${state.profile.boats?.name || "Twój jacht"} · historia wydań`;
+    loadOrderHistory();
   } else if (panel === "supplier") {
     $("#roleEyebrow").textContent = "Panel zaopatrzeniowca";
     $("#heroTitle").textContent = "Jedna lista. Cała flotylla.";
@@ -778,6 +792,93 @@ async function loadReport() {
   }
 }
 
+async function loadOrderHistory() {
+  const list = $("#orderHistoryList");
+  if (!state.profile.boat_id) {
+    list.innerHTML = `<div class="empty">Najpierw rozpocznij turnus i przypisz konto do jachtu.</div>`;
+    return;
+  }
+  list.innerHTML = `<div class="empty">Ładowanie historii…</div>`;
+  try {
+    let orders;
+    if (state.demo) {
+      orders = [
+        {
+          target_date: tomorrowDate(),
+          submitted_at: new Date().toISOString(),
+          location: "cruise",
+          special_requests: "Zgrzewka wody gazowanej",
+          diet_notes: "Brak diet i alergii",
+          order_items: [
+            { quantity: 2, products: { name: "Chleb pszenny", unit: "szt.", category: "Pieczywo", sort_order: 1 } },
+            { quantity: 2, products: { name: "Jajka", unit: "paczka", category: "Nabiał i zamienniki", sort_order: 34 } },
+          ],
+        },
+      ];
+    } else {
+      orders = await api(
+        `/rest/v1/orders?select=target_date,submitted_at,special_requests,location,diet_notes,order_items(quantity,products(name,unit,category,sort_order))&boat_id=eq.${state.profile.boat_id}&order=target_date.desc&limit=40`,
+      );
+    }
+    state.orderHistory = buildDeliveryHistory(orders);
+    renderOrderHistory();
+  } catch (error) {
+    list.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function buildDeliveryHistory(orders) {
+  const deliveries = new Map();
+  orders.forEach((order) => {
+    (order.order_items || []).forEach((item) => {
+      const product = item.products || {};
+      const isBread = product.category === "Pieczywo";
+      const deliveryDate = isBread ? shiftDate(order.target_date, 1) : order.target_date;
+      const delivery = deliveries.get(deliveryDate) || {
+        target_date: deliveryDate,
+        submitted_at: order.submitted_at,
+        location: order.location,
+        diet_notes: order.diet_notes,
+        special_requests: order.special_requests,
+        items: [],
+      };
+      delivery.items.push([
+        product.name || "Produkt",
+        Number(item.quantity) || 0,
+        product.unit || "",
+        product.category || "Inne",
+        product.sort_order || 9999,
+        isBread ? "Pieczywo zamówione dzień wcześniej" : "",
+      ]);
+      deliveries.set(deliveryDate, delivery);
+    });
+  });
+  return [...deliveries.values()]
+    .map((delivery) => ({
+      ...delivery,
+      items: delivery.items.sort((a, b) => (a[4] || 9999) - (b[4] || 9999)),
+    }))
+    .sort((a, b) => b.target_date.localeCompare(a.target_date));
+}
+
+function renderOrderHistory() {
+  const list = $("#orderHistoryList");
+  const history = state.orderHistory || [];
+  list.innerHTML = history.length ? history.map((delivery) => `<details class="boat-card" open>
+    <summary><strong>${formatDate(delivery.target_date)}</strong><span>${delivery.items.length} pozycji</span></summary>
+    <div class="boat-body">
+      <div class="location-badge ${delivery.location || "unknown"}">${
+        delivery.location === "zofiowka" ? "W Zofiówce"
+          : delivery.location === "cruise" ? "W Rejsie"
+            : "Brak informacji o miejscu"
+      }</div>
+      ${renderItemsByCategory(delivery.items)}
+      ${delivery.diet_notes ? `<div class="boat-note"><strong>Diety:</strong> ${escapeHtml(delivery.diet_notes)}</div>` : ""}
+      ${delivery.special_requests ? `<div class="boat-note"><strong>Specjalne:</strong> ${escapeHtml(delivery.special_requests)}</div>` : ""}
+    </div>
+  </details>`).join("") : `<div class="empty">Brak zapisanych zamówień dla tego jachtu.</div>`;
+}
+
 async function loadUserAccounts() {
   if (!canManageUsers()) return;
   const list = $("#userAdminList");
@@ -861,14 +962,66 @@ function reportFilteredBoats(report = state.report) {
 function buildConsolidatedFromBoats(boats) {
   const totals = new Map();
   boats.forEach((boat) => {
-    (boat.items || []).forEach(([name, quantity, unit]) => {
-      const key = `${name}||${unit}`;
-      const current = totals.get(key) || { product_name: name, unit, total_quantity: 0 };
+    (boat.items || []).forEach(([name, quantity, unit, category = "Inne", sortOrder = 9999]) => {
+      const key = `${name}||${unit}||${category}`;
+      const current = totals.get(key) || { product_name: name, category, unit, sort_order: sortOrder, total_quantity: 0 };
       current.total_quantity += Number(quantity) || 0;
       totals.set(key, current);
     });
   });
-  return [...totals.values()].sort((a, b) => a.product_name.localeCompare(b.product_name, "pl"));
+  return [...totals.values()].sort((a, b) =>
+    (a.sort_order || 9999) - (b.sort_order || 9999)
+    || a.product_name.localeCompare(b.product_name, "pl")
+  );
+}
+
+function categoryOrder() {
+  const order = new Map();
+  state.products.forEach((product) => {
+    if (!order.has(product.category)) order.set(product.category, order.size);
+  });
+  return order;
+}
+
+function groupByCategory(items) {
+  const order = categoryOrder();
+  const groups = new Map();
+  items.forEach((item) => {
+    const category = item.category || item[3] || "Inne";
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(item);
+  });
+  return [...groups.entries()].sort(([a], [b]) =>
+    (order.get(a) ?? 999) - (order.get(b) ?? 999) || a.localeCompare(b, "pl")
+  );
+}
+
+function renderConsolidatedByCategory(items) {
+  if (!items.length) return `<div class="empty">Brak pozycji dla wybranego dnia.</div>`;
+  return groupByCategory(items).map(([category, categoryItems]) => `
+    <section class="category-report-group">
+      <h4>${escapeHtml(category)}</h4>
+      <table>
+        <thead><tr><th>Produkt</th><th>Ilość całkowita</th></tr></thead>
+        <tbody>${categoryItems.map((item) => `<tr>
+          <td><strong>${escapeHtml(item.product_name)}</strong></td>
+          <td class="qty">${formatNumber(item.total_quantity)} ${escapeHtml(item.unit)}</td>
+        </tr>`).join("")}</tbody>
+      </table>
+    </section>
+  `).join("");
+}
+
+function renderItemsByCategory(items) {
+  if (!items.length) return `<div class="empty">Brak pozycji.</div>`;
+  return groupByCategory(items).map(([category, categoryItems]) => `
+    <section class="boat-category-group">
+      <h4>${escapeHtml(category)}</h4>
+      <ul>${categoryItems.map(([name, qty, unit, _category, _sortOrder, note]) =>
+        `<li>${escapeHtml(name)} — <strong>${formatNumber(qty)} ${escapeHtml(unit)}</strong>${note ? ` <small>${escapeHtml(note)}</small>` : ""}</li>`
+      ).join("")}</ul>
+    </section>
+  `).join("");
 }
 
 function renderReportLocationTabs() {
@@ -911,13 +1064,7 @@ function renderReport() {
   const query = $("#reportSearch").value.trim().toLocaleLowerCase("pl");
   const consolidated = buildConsolidatedFromBoats(filteredBoats)
     .filter((item) => item.product_name.toLocaleLowerCase("pl").includes(query));
-  $("#consolidatedList").innerHTML = consolidated.length ? `<table>
-    <thead><tr><th>Produkt</th><th>Ilość całkowita</th></tr></thead>
-    <tbody>${consolidated.map((item) => `<tr>
-      <td><strong>${escapeHtml(item.product_name)}</strong></td>
-      <td class="qty">${formatNumber(item.total_quantity)} ${escapeHtml(item.unit)}</td>
-    </tr>`).join("")}</tbody>
-  </table>` : `<div class="empty">Brak pozycji dla wybranego dnia.</div>`;
+  $("#consolidatedList").innerHTML = renderConsolidatedByCategory(consolidated);
 
   const specialRequests = filteredBoats
     .filter((boat) => boat.special_requests?.trim())
@@ -935,7 +1082,7 @@ function renderReport() {
             : boat.location === "cruise" ? "W Rejsie"
               : "Brak informacji o miejscu"
         }</div>
-        <ul>${(boat.items || []).map(([name, qty, unit]) => `<li>${escapeHtml(name)} — <strong>${formatNumber(qty)} ${escapeHtml(unit)}</strong></li>`).join("")}</ul>
+        ${renderItemsByCategory(boat.items || [])}
         ${boat.diet_notes ? `<div class="boat-note"><strong>Diety:</strong> ${escapeHtml(boat.diet_notes)}</div>` : ""}
         ${boat.special_requests ? `<div class="boat-note"><strong>Specjalne:</strong> ${escapeHtml(boat.special_requests)}</div>` : ""}
       </div>
@@ -947,8 +1094,8 @@ function renderReport() {
 
 function exportCsv() {
   if (!state.report) return;
-  const rows = [["Produkt", "Ilość całkowita", "Jednostka"]];
-  buildConsolidatedFromBoats(reportFilteredBoats()).forEach((item) => rows.push([item.product_name, item.total_quantity, item.unit]));
+  const rows = [["Kategoria", "Produkt", "Ilość całkowita", "Jednostka"]];
+  buildConsolidatedFromBoats(reportFilteredBoats()).forEach((item) => rows.push([item.category, item.product_name, item.total_quantity, item.unit]));
   const csv = "\ufeff" + rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\r\n");
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -974,6 +1121,7 @@ function bindEvents() {
   $("#enterDemoButton").addEventListener("click", enterDemo);
   $("#productSearch").addEventListener("input", renderProducts);
   $("#recipeSearch").addEventListener("input", renderRecipes);
+  $("#refreshHistoryButton").addEventListener("click", loadOrderHistory);
   $("#reportSearch").addEventListener("input", renderReport);
   $("#reportStats").addEventListener("click", (event) => {
     if (!event.target.closest("#missingBoatsStat")) return;
