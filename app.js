@@ -671,7 +671,7 @@ function renderProducts() {
       </div>
       <label class="product-note">
         <span>Rodzaj</span>
-        <input type="text" value="${escapeHtml(note)}" placeholder="np. smak, wariant, marka" aria-label="Rodzaj ${escapeHtml(product.name)}" />
+        <input type="text" value="${escapeHtml(note)}" placeholder="np. rodzaj, smak, zamiennik" aria-label="Rodzaj ${escapeHtml(product.name)}" />
       </label>
     </article>`;
   }).join("") : `<div class="empty">Nie znaleziono produktu. Możesz dopisać prośbę w polu „Specjalne prośby i zamienniki”.</div>`;
