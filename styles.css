@@ -167,6 +167,13 @@ h3 { font-size: 23px; }
 .product-row.selected { border-color: #e50067; background: #fff3f8; }
 .product-name strong, .product-name small { display: block; }
 .product-name small { color: var(--muted); margin-top: 3px; }
+.product-note {
+  grid-column: 1 / -1; display: none; grid-template-columns: 70px 1fr; align-items: center; gap: 10px;
+  padding-top: 11px; border-top: 1px dashed #d9ded8;
+}
+.product-row.expanded .product-note, .product-row.selected .product-note, .product-row:focus-within .product-note { display: grid; }
+.product-note span { color: var(--muted); font-size: 12px; font-weight: 800; }
+.product-note input { margin: 0; padding: 10px 11px; }
 .stepper { display: grid; grid-template-columns: 35px 52px 35px; align-items: center; }
 .stepper button { width: 35px; height: 35px; border: 0; border-radius: 10px; background: #e6ece9; color: var(--sea); font-size: 20px; }
 .stepper input { width: 52px; padding: 7px 4px; margin: 0; border: 0; text-align: center; background: transparent; box-shadow: none; }
@@ -187,6 +194,10 @@ h3 { font-size: 23px; }
 .order-location-options input { width: 17px; height: 17px; margin: 0; accent-color: var(--sun); }
 .field-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .field-card-heading > span { font-family: Georgia, serif; font-size: 19px; }
+.special-requests-card { display: grid; gap: 12px; }
+.special-request-list { display: grid; gap: 8px; }
+.special-request-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.special-request-row input { margin: 0; }
 .diet-summary { display: flex; flex-wrap: wrap; gap: 7px; min-height: 37px; margin-top: 14px; }
 .diet-pill {
   display: inline-flex; align-items: center; padding: 7px 10px; color: var(--sea);

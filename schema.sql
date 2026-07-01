@@ -76,8 +76,11 @@ create table if not exists public.order_items (
   order_id uuid not null references public.orders(id) on delete cascade,
   product_id uuid not null references public.products(id),
   quantity numeric(10,2) not null check (quantity > 0),
+  item_note text not null default '',
   primary key (order_id, product_id)
 );
+
+alter table public.order_items add column if not exists item_note text not null default '';
 
 insert into public.products (name, category, unit, sort_order) values
 ('Chleb pszenny','Pieczywo','szt.',1),('Chleb razowy','Pieczywo','szt.',2),
@@ -94,13 +97,13 @@ insert into public.products (name, category, unit, sort_order) values
 ('Hummus','Nabiał i zamienniki','opak.',16),('Serek wiejski','Nabiał i zamienniki','szt.',17),
 ('Skyr Naturalny','Nabiał i zamienniki','szt.',18),('Skyr owocowy','Nabiał i zamienniki','szt.',19),
 ('Skyr waniliowy','Nabiał i zamienniki','szt.',20),('Passata pomidorowa','Dodatki','szt.',21),
-('Suszone pomidory','Dodatki','słoik',22),('Szynka','Mięso i zamienniki','opak.',23),
+('Suszone pomidory','Dodatki','słoik',22),('Sok do wody','Dodatki','butelka',23),('Szynka','Mięso i zamienniki','opak.',24),
 ('Schab w plastrach','Mięso i zamienniki','opak.',24),('Salami','Mięso i zamienniki','opak.',25),
 ('Kabanosy','Mięso i zamienniki','opak.',26),('Boczek','Mięso i zamienniki','opak.',27),
 ('Parówki','Mięso i zamienniki','paczka 12 szt.',28),('Pasztet','Mięso i zamienniki','opak.',29),
 ('Wege parówki','Mięso i zamienniki','opak.',31),
 ('Wege kabanosy','Mięso i zamienniki','opak.',32),('Wege szynka','Mięso i zamienniki','opak.',33),
-('Jajka','Nabiał i zamienniki','paczka',34),('Pomidory','Warzywa','szt.',35),
+('Jajka','Nabiał i zamienniki','paczka 10 szt.',34),('Pomidory','Warzywa','szt.',35),
 ('Ogórki','Warzywa','szt.',36),('Papryka','Warzywa','szt.',37),('Sałata','Warzywa','szt.',38),
 ('Rukola','Warzywa','opak.',39),('Rzodkiewki','Warzywa','pęczek',40),
 ('Szczypiorek','Warzywa','pęczek',41),('Cebula czerwona/żółta','Warzywa','szt.',42),
@@ -110,17 +113,18 @@ insert into public.products (name, category, unit, sort_order) values
 ('Śmietana 18/30','Śniadaniowe','szt.',49),('Płatki kukurydziane','Śniadaniowe','opak.',50),
 ('Płatki czekoladowe','Śniadaniowe','opak.',51),('Musli','Śniadaniowe','opak.',52),
 ('Granola','Śniadaniowe','opak.',53),('Owsianka','Śniadaniowe','opak.',54),
-('Krem czekoladowy','Śniadaniowe','słoik',55),('Dżem','Śniadaniowe','słoik',56),
+('Krem czekoladowy','Śniadaniowe','słoik',55),('Dżem','Śniadaniowe','słoik',56),('Pasta do smarowania','Śniadaniowe','szt.',57),
 ('Rodzynki','Śniadaniowe','opak.',57),('Masło','Śniadaniowe','szt.',58),
 ('Wege masło','Śniadaniowe','szt.',59),('Mąka','Śniadaniowe','kg',60),
 ('Cukier','Śniadaniowe','kg',61),('Cukier wanilinowy','Śniadaniowe','opak.',62),
-('Olej','Śniadaniowe','l',63),('Banany','Owoce','szt.',64),('Jabłka','Owoce','szt.',65),
+('Banany','Owoce','szt.',64),('Jabłka','Owoce','szt.',65),
 ('Gruszki','Owoce','szt.',66),('Winogrona','Owoce','opak.',67),('Truskawki','Owoce','opak.',68)
 on conflict (name) do update set
   category = excluded.category, unit = excluded.unit, sort_order = excluded.sort_order;
 
 update public.products set active = false where name = 'Ryba wędzona';
-update public.products set unit = 'paczka' where name = 'Jajka';
+update public.products set active = false where name = 'Olej';
+update public.products set unit = 'paczka 10 szt.' where name = 'Jajka';
 update public.products set unit = 'paczka 12 szt.' where name = 'Parówki';
 
 create or replace function public.current_app_role()
@@ -513,10 +517,10 @@ begin
   returning id into v_order_id;
 
   delete from public.order_items where order_id = v_order_id;
-  insert into public.order_items(order_id, product_id, quantity)
-  select v_order_id, x.product_id, x.quantity
+  insert into public.order_items(order_id, product_id, quantity, item_note)
+  select v_order_id, x.product_id, x.quantity, left(coalesce(trim(x.item_note), ''), 160)
   from jsonb_to_recordset(coalesce(p_items, '[]'::jsonb))
-    as x(product_id uuid, quantity numeric)
+    as x(product_id uuid, quantity numeric, item_note text)
   join public.products p on p.id = x.product_id and p.active
   where x.quantity > 0;
 
@@ -589,6 +593,7 @@ begin
         select p.sort_order, jsonb_build_object(
           'product_name', p.name,
           'category', p.category,
+          'item_note', oi.item_note,
           'unit', p.unit,
           'total_quantity', sum(oi.quantity),
           'boats', jsonb_agg(b.name || ': ' || trim(to_char(oi.quantity, 'FM999999990.##')) order by b.name)
@@ -601,7 +606,7 @@ begin
             or (p.category <> 'Pieczywo' and o.target_date = p_target_date)
           )
         join public.boats b on b.id = o.boat_id
-        group by p.id, p.name, p.category, p.unit, p.sort_order
+        group by p.id, p.name, p.category, p.unit, p.sort_order, oi.item_note
       ) q
     ), '[]'::jsonb),
     'boats', coalesce((
@@ -617,7 +622,7 @@ begin
           'special_requests', o_current.special_requests,
           'breakfast_choices', coalesce(o_current.breakfast_choices, '{}'),
           'items', coalesce((
-            select jsonb_agg(jsonb_build_array(p.name, oi.quantity, p.unit, p.category, p.sort_order) order by p.sort_order)
+            select jsonb_agg(jsonb_build_array(p.name, oi.quantity, p.unit, p.category, p.sort_order, oi.item_note) order by p.sort_order)
             from public.order_items oi
             join public.products p on p.id = oi.product_id and p.active
             join public.orders o_items on o_items.id = oi.order_id

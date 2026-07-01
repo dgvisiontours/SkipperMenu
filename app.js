@@ -23,6 +23,8 @@ const state = {
   report: null,
   orderHistory: [],
   userAccounts: [],
+  productNotes: new Map(),
+  specialRequests: [""],
   demo: false,
   dirty: false,
   dietSetupRequired: false,
@@ -43,7 +45,7 @@ const DEMO_REPORT = {
     { label: "Bez orzechów", count: 1 },
   ],
   consolidated: [
-    { product_name: "Jajka", unit: "paczka", total_quantity: 8, boats: ["Bajka: 2", "Bryza: 2", "Czapla: 2", "Delfin: 2"] },
+    { product_name: "Jajka", category: "Nabiał i zamienniki", unit: "paczka 10 szt.", item_note: "", total_quantity: 8, boats: ["Bajka: 2", "Bryza: 2", "Czapla: 2", "Delfin: 2"] },
     { product_name: "Parówki", category: "Mięso i zamienniki", unit: "paczka 12 szt.", total_quantity: 4, boats: ["Bajka: 2", "Bryza: 1", "Czapla: 1"] },
     { product_name: "Banany", unit: "szt.", total_quantity: 22, boats: ["Bryza: 4", "Czapla: 4", "Delfin: 7", "Foka: 7"] },
     { product_name: "Skyr owocowy", unit: "szt.", total_quantity: 14, boats: ["Delfin: 7", "Foka: 7"] },
@@ -52,10 +54,10 @@ const DEMO_REPORT = {
     { product_name: "Mleko", unit: "l", total_quantity: 4, boats: ["Bajka: 1", "Czapla: 2", "Foka: 1"] },
   ],
   boats: [
-    { boat_name: "Bajka", skipper_name: "Maciek", location: "cruise", crew_profile: { total: 8 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "Woda smakowa, bułki hot dog", items: [["Parówki", 2, "paczka 12 szt.", "Mięso i zamienniki"], ["Jajka", 2, "paczka", "Nabiał i zamienniki"], ["Mleko", 1, "l", "Śniadaniowe"]] },
-    { boat_name: "Bryza", skipper_name: "Kuba", location: "zofiowka", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "1 osoba bez laktozy", special_requests: "Cytryny, woda gazowana", items: [["Bułki kajzerki", 7, "szt."], ["Jajka", 2, "paczka"], ["Banany", 4, "szt."]] },
-    { boat_name: "Czapla", skipper_name: "Oliwka", location: "cruise", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "2 wege", special_requests: "Kawa rozpuszczalna", items: [["Jajka", 2, "paczka", "Nabiał i zamienniki"], ["Parówki", 1, "paczka 12 szt.", "Mięso i zamienniki"], ["Mleko", 2, "l", "Śniadaniowe"]] },
-    { boat_name: "Delfin", skipper_name: "Rafał", location: "cruise", crew_profile: { total: 8 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "", items: [["Jajka", 2, "paczka"], ["Banany", 7, "szt."], ["Skyr owocowy", 7, "szt."]] },
+    { boat_name: "Bajka", skipper_name: "Maciek", location: "cruise", crew_profile: { total: 8 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "[\"Woda smakowa\", \"bułki hot dog\"]", items: [["Parówki", 2, "paczka 12 szt.", "Mięso i zamienniki"], ["Jajka", 2, "paczka 10 szt.", "Nabiał i zamienniki"], ["Mleko", 1, "l", "Śniadaniowe"]] },
+    { boat_name: "Bryza", skipper_name: "Kuba", location: "zofiowka", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "1 osoba bez laktozy", special_requests: "Cytryny, woda gazowana", items: [["Bułki kajzerki", 7, "szt.", "Pieczywo"], ["Jajka", 2, "paczka 10 szt.", "Nabiał i zamienniki"], ["Banany", 4, "szt.", "Owoce"]] },
+    { boat_name: "Czapla", skipper_name: "Oliwka", location: "cruise", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "2 wege", special_requests: "Kawa rozpuszczalna", items: [["Jajka", 2, "paczka 10 szt.", "Nabiał i zamienniki"], ["Parówki", 1, "paczka 12 szt.", "Mięso i zamienniki"], ["Mleko", 2, "l", "Śniadaniowe"]] },
+    { boat_name: "Delfin", skipper_name: "Rafał", location: "cruise", crew_profile: { total: 8 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "", items: [["Jajka", 2, "paczka 10 szt.", "Nabiał i zamienniki"], ["Banany", 7, "szt.", "Owoce"], ["Skyr owocowy", 7, "szt.", "Nabiał i zamienniki"]] },
     { boat_name: "Foka", skipper_name: "Olga", location: "zofiowka", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "1 wege", special_requests: "Brzoskwinie", items: [["Bułki kajzerki", 7, "szt."], ["Banany", 7, "szt."], ["Skyr owocowy", 7, "szt."]] },
     { boat_name: "Goplana", skipper_name: "Krzysiu", location: "cruise", crew_profile: { total: 7 }, submitted_at: new Date().toISOString(), diet_notes: "", special_requests: "Kawa rozpuszczalna", items: [["Bułki kajzerki", 7, "szt."], ["Awokado", 2, "szt."], ["Mleko", 1, "l"]] },
   ],
@@ -313,6 +315,7 @@ function updateDeadline() {
 function setupOrderPanel() {
   renderCategoryFilters();
   renderProducts();
+  renderSpecialRequests();
 }
 
 function emptyDietPreferences() {
@@ -558,7 +561,9 @@ async function saveDietPreferences(event) {
       state.profile.diet_preferences = result.diet_preferences;
       state.profile.boats.crew_profile = result.crew_profile;
       state.quantities.clear();
-      $("#specialRequests").value = "";
+      state.productNotes.clear();
+      state.specialRequests = [""];
+      renderSpecialRequests();
       $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
       $("#userLabel").textContent = `${state.profile.full_name} · ${result.boat_name}`;
       $("#heroSubtitle").textContent = `${result.boat_name} · wydanie ${formatDate(tomorrowDate())}`;
@@ -656,6 +661,7 @@ function renderProducts() {
   );
   $("#productList").innerHTML = filtered.length ? filtered.map((product) => {
     const quantity = state.quantities.get(product.id) || 0;
+    const note = state.productNotes.get(product.id) || "";
     return `<article class="product-row ${quantity > 0 ? "selected" : ""}" data-product="${product.id}">
       <div class="product-name"><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.category)} · ${escapeHtml(product.unit)}</small></div>
       <div class="stepper">
@@ -663,14 +669,23 @@ function renderProducts() {
         <input type="number" inputmode="decimal" min="0" step="0.5" value="${quantity || ""}" placeholder="0" aria-label="Ilość ${escapeHtml(product.name)}" />
         <button type="button" data-step="1" aria-label="Zwiększ">+</button>
       </div>
+      <label class="product-note">
+        <span>Rodzaj</span>
+        <input type="text" value="${escapeHtml(note)}" placeholder="np. smak, wariant, marka" aria-label="Rodzaj ${escapeHtml(product.name)}" />
+      </label>
     </article>`;
   }).join("") : `<div class="empty">Nie znaleziono produktu. Możesz dopisać prośbę w polu „Specjalne prośby i zamienniki”.</div>`;
 
   $$(".product-row").forEach((row) => {
-    const input = row.querySelector("input");
+    const input = row.querySelector(".stepper input");
+    const noteInput = row.querySelector(".product-note input");
     row.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => {
       setQuantity(row.dataset.product, Math.max(0, (Number(input.value) || 0) + Number(button.dataset.step)));
     }));
+    row.addEventListener("click", (event) => {
+      if (event.target.closest(".stepper") || event.target.closest(".product-note")) return;
+      row.classList.toggle("expanded");
+    });
     input.addEventListener("input", () => {
       const quantity = Math.max(0, Number(input.value) || 0);
       if (quantity > 0) state.quantities.set(row.dataset.product, quantity);
@@ -680,8 +695,52 @@ function renderProducts() {
       updateOrderSummary();
     });
     input.addEventListener("change", renderProducts);
+    noteInput.addEventListener("input", () => {
+      const note = noteInput.value.trim();
+      if (note) state.productNotes.set(row.dataset.product, note);
+      else state.productNotes.delete(row.dataset.product);
+      state.dirty = true;
+      updateOrderSummary();
+    });
   });
   updateOrderSummary();
+}
+
+function parseSpecialRequests(value) {
+  if (!value) return [""];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item || "")).filter(Boolean).concat("");
+  } catch {}
+  return String(value).split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean).concat("");
+}
+
+function serializeSpecialRequests() {
+  return JSON.stringify(state.specialRequests.map((item) => item.trim()).filter(Boolean));
+}
+
+function renderSpecialRequests() {
+  const list = $("#specialRequestsList");
+  if (!list) return;
+  if (!state.specialRequests.length) state.specialRequests = [""];
+  list.innerHTML = state.specialRequests.map((request, index) => `
+    <div class="special-request-row">
+      <input type="text" value="${escapeHtml(request)}" aria-label="Specjalna prośba ${index + 1}" />
+      <button class="button ghost compact" type="button" data-remove-special="${index}" aria-label="Usuń pozycję">Usuń</button>
+    </div>
+  `).join("");
+  list.querySelectorAll(".special-request-row").forEach((row, index) => {
+    row.querySelector("input").addEventListener("input", (event) => {
+      state.specialRequests[index] = event.target.value;
+      state.dirty = true;
+      updateOrderSummary();
+    });
+  });
+}
+
+function formatSpecialRequests(value) {
+  const items = parseSpecialRequests(value).filter(Boolean);
+  return items.length ? `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : "";
 }
 
 function setQuantity(productId, quantity) {
@@ -698,8 +757,10 @@ function updateOrderSummary() {
 
 async function loadMyOrder() {
   state.quantities.clear();
+  state.productNotes.clear();
   $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
-  $("#specialRequests").value = "";
+  state.specialRequests = [""];
+  renderSpecialRequests();
   if (!state.profile.boat_id) {
     state.dirty = false;
     renderProducts();
@@ -707,18 +768,23 @@ async function loadMyOrder() {
   }
   if (state.demo) {
     [["demo-34", 20], ["demo-5", 7], ["demo-64", 8], ["demo-47", 2]].forEach(([id, qty]) => state.quantities.set(id, qty));
-    $("#specialRequests").value = "Zgrzewka wody gazowanej";
+    state.specialRequests = ["Zgrzewka wody gazowanej", ""];
+    renderSpecialRequests();
     $('input[name="orderLocation"][value="cruise"]').checked = true;
     state.dirty = false;
     renderProducts();
     return;
   }
   try {
-    const rows = await api(`/rest/v1/orders?select=id,special_requests,location,submitted_at,order_items(product_id,quantity)&target_date=eq.${tomorrowDate()}&boat_id=eq.${state.profile.boat_id}&limit=1`);
+    const rows = await api(`/rest/v1/orders?select=id,special_requests,location,submitted_at,order_items(product_id,quantity,item_note)&target_date=eq.${tomorrowDate()}&boat_id=eq.${state.profile.boat_id}&limit=1`);
     const order = rows[0];
     if (order) {
-      order.order_items.forEach((item) => state.quantities.set(item.product_id, Number(item.quantity)));
-      $("#specialRequests").value = order.special_requests || "";
+      order.order_items.forEach((item) => {
+        state.quantities.set(item.product_id, Number(item.quantity));
+        if (item.item_note) state.productNotes.set(item.product_id, item.item_note);
+      });
+      state.specialRequests = parseSpecialRequests(order.special_requests || "");
+      renderSpecialRequests();
       const locationInput = $(`input[name="orderLocation"][value="${order.location || ""}"]`);
       if (locationInput) locationInput.checked = true;
     }
@@ -748,7 +814,11 @@ async function submitOrder() {
     toast(message, true);
     return;
   }
-  const items = [...state.quantities].map(([product_id, quantity]) => ({ product_id, quantity }));
+  const items = [...state.quantities].map(([product_id, quantity]) => ({
+    product_id,
+    quantity,
+    item_note: state.productNotes.get(product_id) || "",
+  }));
   const location = $('input[name="orderLocation"]:checked')?.value;
   if (!location) {
     toast("Wybierz: W Rejsie albo W Zofiówce.", true);
@@ -758,7 +828,7 @@ async function submitOrder() {
   const payload = {
     p_target_date: tomorrowDate(),
     p_diet_notes: dietPreferencesText(),
-    p_special_requests: $("#specialRequests").value.trim(),
+    p_special_requests: serializeSpecialRequests(),
     p_breakfast_choices: [],
     p_items: items,
     p_location: location,
@@ -810,14 +880,14 @@ async function loadOrderHistory() {
           special_requests: "Zgrzewka wody gazowanej",
           diet_notes: "Brak diet i alergii",
           order_items: [
-            { quantity: 2, products: { name: "Chleb pszenny", unit: "szt.", category: "Pieczywo", sort_order: 1 } },
-            { quantity: 2, products: { name: "Jajka", unit: "paczka", category: "Nabiał i zamienniki", sort_order: 34 } },
+            { quantity: 2, item_note: "", products: { name: "Chleb pszenny", unit: "szt.", category: "Pieczywo", sort_order: 1 } },
+            { quantity: 2, item_note: "", products: { name: "Jajka", unit: "paczka 10 szt.", category: "Nabiał i zamienniki", sort_order: 34 } },
           ],
         },
       ];
     } else {
       orders = await api(
-        `/rest/v1/orders?select=target_date,submitted_at,special_requests,location,diet_notes,order_items(quantity,products(name,unit,category,sort_order))&boat_id=eq.${state.profile.boat_id}&order=target_date.desc&limit=40`,
+        `/rest/v1/orders?select=target_date,submitted_at,special_requests,location,diet_notes,order_items(quantity,item_note,products(name,unit,category,sort_order))&boat_id=eq.${state.profile.boat_id}&order=target_date.desc&limit=40`,
       );
     }
     state.orderHistory = buildDeliveryHistory(orders);
@@ -848,6 +918,7 @@ function buildDeliveryHistory(orders) {
         product.unit || "",
         product.category || "Inne",
         product.sort_order || 9999,
+        item.item_note || "",
         isBread ? "Pieczywo zamówione dzień wcześniej" : "",
       ]);
       deliveries.set(deliveryDate, delivery);
@@ -874,7 +945,7 @@ function renderOrderHistory() {
       }</div>
       ${renderItemsByCategory(delivery.items)}
       ${delivery.diet_notes ? `<div class="boat-note"><strong>Diety:</strong> ${escapeHtml(delivery.diet_notes)}</div>` : ""}
-      ${delivery.special_requests ? `<div class="boat-note"><strong>Specjalne:</strong> ${escapeHtml(delivery.special_requests)}</div>` : ""}
+      ${formatSpecialRequests(delivery.special_requests) ? `<div class="boat-note"><strong>Specjalne:</strong> ${formatSpecialRequests(delivery.special_requests)}</div>` : ""}
     </div>
   </details>`).join("") : `<div class="empty">Brak zapisanych zamówień dla tego jachtu.</div>`;
 }
@@ -962,9 +1033,9 @@ function reportFilteredBoats(report = state.report) {
 function buildConsolidatedFromBoats(boats) {
   const totals = new Map();
   boats.forEach((boat) => {
-    (boat.items || []).forEach(([name, quantity, unit, category = "Inne", sortOrder = 9999]) => {
-      const key = `${name}||${unit}||${category}`;
-      const current = totals.get(key) || { product_name: name, category, unit, sort_order: sortOrder, total_quantity: 0 };
+    (boat.items || []).forEach(([name, quantity, unit, category = "Inne", sortOrder = 9999, itemNote = ""]) => {
+      const key = `${name}||${unit}||${category}||${itemNote}`;
+      const current = totals.get(key) || { product_name: name, category, unit, sort_order: sortOrder, item_note: itemNote, total_quantity: 0 };
       current.total_quantity += Number(quantity) || 0;
       totals.set(key, current);
     });
@@ -1002,9 +1073,10 @@ function renderConsolidatedByCategory(items) {
     <section class="category-report-group">
       <h4>${escapeHtml(category)}</h4>
       <table>
-        <thead><tr><th>Produkt</th><th>Ilość całkowita</th></tr></thead>
+        <thead><tr><th>Produkt</th><th>Rodzaj</th><th>Ilość całkowita</th></tr></thead>
         <tbody>${categoryItems.map((item) => `<tr>
           <td><strong>${escapeHtml(item.product_name)}</strong></td>
+          <td>${escapeHtml(item.item_note || "—")}</td>
           <td class="qty">${formatNumber(item.total_quantity)} ${escapeHtml(item.unit)}</td>
         </tr>`).join("")}</tbody>
       </table>
@@ -1017,8 +1089,8 @@ function renderItemsByCategory(items) {
   return groupByCategory(items).map(([category, categoryItems]) => `
     <section class="boat-category-group">
       <h4>${escapeHtml(category)}</h4>
-      <ul>${categoryItems.map(([name, qty, unit, _category, _sortOrder, note]) =>
-        `<li>${escapeHtml(name)} — <strong>${formatNumber(qty)} ${escapeHtml(unit)}</strong>${note ? ` <small>${escapeHtml(note)}</small>` : ""}</li>`
+      <ul>${categoryItems.map(([name, qty, unit, _category, _sortOrder, itemNote, deliveryNote]) =>
+        `<li>${escapeHtml(name)}${itemNote ? ` (${escapeHtml(itemNote)})` : ""} — <strong>${formatNumber(qty)} ${escapeHtml(unit)}</strong>${deliveryNote ? ` <small>${escapeHtml(deliveryNote)}</small>` : ""}</li>`
       ).join("")}</ul>
     </section>
   `).join("");
@@ -1068,7 +1140,11 @@ function renderReport() {
 
   const specialRequests = filteredBoats
     .filter((boat) => boat.special_requests?.trim())
-    .map((boat) => `<li><strong>${escapeHtml(boat.boat_name)}</strong>: ${escapeHtml(boat.special_requests.trim())}</li>`);
+    .map((boat) => {
+      const formatted = formatSpecialRequests(boat.special_requests);
+      return formatted ? `<li><strong>${escapeHtml(boat.boat_name)}</strong>${formatted}</li>` : "";
+    })
+    .filter(Boolean);
   $("#specialRequestsReport").innerHTML = specialRequests.length
     ? `<ul>${specialRequests.join("")}</ul>`
     : `<div class="empty">Brak specjalnych próśb i zamienników dla wybranego widoku.</div>`;
@@ -1084,7 +1160,7 @@ function renderReport() {
         }</div>
         ${renderItemsByCategory(boat.items || [])}
         ${boat.diet_notes ? `<div class="boat-note"><strong>Diety:</strong> ${escapeHtml(boat.diet_notes)}</div>` : ""}
-        ${boat.special_requests ? `<div class="boat-note"><strong>Specjalne:</strong> ${escapeHtml(boat.special_requests)}</div>` : ""}
+        ${formatSpecialRequests(boat.special_requests) ? `<div class="boat-note"><strong>Specjalne:</strong> ${formatSpecialRequests(boat.special_requests)}</div>` : ""}
       </div>
     </details>`)),
   ].join("") || `<div class="empty">Żaden jacht jeszcze nie wysłał zamówienia.</div>`;
@@ -1094,8 +1170,8 @@ function renderReport() {
 
 function exportCsv() {
   if (!state.report) return;
-  const rows = [["Kategoria", "Produkt", "Ilość całkowita", "Jednostka"]];
-  buildConsolidatedFromBoats(reportFilteredBoats()).forEach((item) => rows.push([item.category, item.product_name, item.total_quantity, item.unit]));
+  const rows = [["Kategoria", "Produkt", "Rodzaj", "Ilość całkowita", "Jednostka"]];
+  buildConsolidatedFromBoats(reportFilteredBoats()).forEach((item) => rows.push([item.category, item.product_name, item.item_note || "", item.total_quantity, item.unit]));
   const csv = "\ufeff" + rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(";")).join("\r\n");
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -1168,10 +1244,21 @@ function bindEvents() {
   }));
   $("#exportCsvButton").addEventListener("click", exportCsv);
   $("#printButton").addEventListener("click", () => window.print());
-  ["#specialRequests"].forEach((selector) => $(selector).addEventListener("input", () => {
+  $("#addSpecialRequestButton").addEventListener("click", () => {
+    state.specialRequests.push("");
+    renderSpecialRequests();
+    const inputs = $$("#specialRequestsList input");
+    inputs.at(-1)?.focus();
+  });
+  $("#specialRequestsList").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-special]");
+    if (!button) return;
+    state.specialRequests.splice(Number(button.dataset.removeSpecial), 1);
+    if (!state.specialRequests.length) state.specialRequests = [""];
     state.dirty = true;
     updateOrderSummary();
-  }));
+    renderSpecialRequests();
+  });
   $$('input[name="orderLocation"]').forEach((input) => input.addEventListener("change", () => {
     state.dirty = true;
     updateOrderSummary();
