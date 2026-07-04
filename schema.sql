@@ -787,17 +787,6 @@ begin
         group by p.category
       ) q
     ), '[]'::jsonb),
-    'daily_totals', coalesce((
-      select jsonb_agg(jsonb_build_object('label', to_char(day, 'DD.MM'), 'value', coalesce(total_quantity, 0)) order by day)
-      from (
-        select d::date as day, sum(case when p.id is not null then oi.quantity else 0 end) as total_quantity
-        from generate_series(v_start, v_today, interval '1 day') d
-        left join public.orders o on o.target_date = d::date
-        left join public.order_items oi on oi.order_id = o.id
-        left join public.products p on p.id = oi.product_id and p.active
-        group by d::date
-      ) q
-    ), '[]'::jsonb),
     'diet_totals', coalesce((
       select jsonb_agg(jsonb_build_object('label', diet_label, 'count', diet_count) order by sort_order, diet_label)
       from (

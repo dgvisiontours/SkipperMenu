@@ -127,8 +127,47 @@ function formatDate(dateString) {
   }).format(new Date(`${dateString}T12:00:00Z`));
 }
 
-async function api(path, { method = "GET", body, auth = true, headers = {} } = {}) {
-  if (!state.session && auth) throw new Error("Sesja wygasła. Zaloguj się ponownie.");
+async function refreshSession() {
+  const current = state.session || JSON.parse(localStorage.getItem("proviant-session") || "null");
+  if (!current?.refresh_token) return false;
+  try {
+    const refreshed = await api("/auth/v1/token?grant_type=refresh_token", {
+      method: "POST", auth: false, body: { refresh_token: current.refresh_token },
+    });
+    refreshed.expires_at = Math.floor(Date.now() / 1000) + refreshed.expires_in;
+    if (!refreshed.user && current.user) refreshed.user = current.user;
+    saveSession(refreshed);
+    return true;
+  } catch {
+    saveSession(null);
+    return false;
+  }
+}
+
+async function ensureSessionFresh() {
+  if (!state.session) throw new Error("Sesja wygasła. Zaloguj się ponownie.");
+  if (!state.session.expires_at) return;
+  const expiresSoon = state.session.expires_at * 1000 < Date.now() + 120_000;
+  if (!expiresSoon) return;
+  const refreshed = await refreshSession();
+  if (!refreshed) throw new Error("Sesja wygasła. Zaloguj się ponownie.");
+}
+
+function isExpiredJwtError(error) {
+  const message = [
+    error?.message,
+    error?.error_description,
+    error?.hint,
+    error?.code,
+  ].filter(Boolean).join(" ").toLocaleLowerCase("pl");
+  return message.includes("jwt expired")
+    || message.includes("jwtexpired")
+    || message.includes("expired")
+    || message.includes("invalid jwt");
+}
+
+async function api(path, { method = "GET", body, auth = true, headers = {}, retry = true } = {}) {
+  if (auth) await ensureSessionFresh();
   const response = await fetch(`${supabaseBaseUrl()}/${path.replace(/^\/+/, "")}`, {
     method,
     headers: {
@@ -141,6 +180,10 @@ async function api(path, { method = "GET", body, auth = true, headers = {} } = {
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
+    if (auth && retry && (response.status === 401 || isExpiredJwtError(error))) {
+      const refreshed = await refreshSession();
+      if (refreshed) return api(path, { method, body, auth, headers, retry: false });
+    }
     throw new Error(error.message || error.error_description || error.hint || `Błąd ${response.status}`);
   }
   if (response.status === 204) return null;
@@ -161,17 +204,8 @@ async function restoreSession() {
     return true;
   }
   if (!saved.refresh_token) return false;
-  try {
-    const refreshed = await api("/auth/v1/token?grant_type=refresh_token", {
-      method: "POST", auth: false, body: { refresh_token: saved.refresh_token },
-    });
-    refreshed.expires_at = Math.floor(Date.now() / 1000) + refreshed.expires_in;
-    saveSession(refreshed);
-    return true;
-  } catch {
-    saveSession(null);
-    return false;
-  }
+  state.session = saved;
+  return refreshSession();
 }
 
 async function loadProfileAndProducts() {
@@ -1021,7 +1055,6 @@ function buildDemoStats(days = 7) {
       { label: "Owoce", value: 96 },
       { label: "Warzywa", value: 32 },
     ],
-    daily_totals: Array.from({ length: days }, (_, index) => ({ label: `D-${days - index - 1}`, value: 20 + index * 7 })),
     diet_totals: DEMO_REPORT.diet_totals,
     boat_type_totals: [
       { label: "Rekreacyjne", value: 4 },
@@ -1045,27 +1078,77 @@ function renderAdminStats() {
     [formatNumber(summary.total_quantity || 0), "Łączna ilość produktów"],
   ].map(([value, label]) => `<div class="stat"><strong>${value}</strong><span>${label}</span></div>`).join("");
 
-  renderBarChart("#topProductsChart", (stats.product_totals || []).slice(0, 10), {
-    label: "product_name", value: "order_count", valueLabel: "zamówień",
-    sublabel: (item) => `${formatNumber(item.total_quantity)} ${item.unit || ""} · ${formatBoatSkipperList(item.boats)}`,
+  renderProductRanking("#topProductsChart", (stats.product_totals || []).slice(0, 10), {
+    mode: "top",
+    empty: "Brak zamówionych produktów w wybranym zakresie.",
   });
-  renderBarChart("#rareProductsChart", (stats.least_products || []).slice(0, 10), {
-    label: "product_name", value: "order_count", valueLabel: "zamówień",
-    sublabel: (item) => item.order_count
-      ? `${formatNumber(item.total_quantity || 0)} ${item.unit || ""} · ${formatBoatSkipperList(item.boats)}`
-      : "Brak zamówień w tym zakresie",
-    inverse: true,
+  renderProductRanking("#rareProductsChart", (stats.least_products || []).slice(0, 10), {
+    mode: "rare",
+    empty: "Brak danych o rzadkich produktach.",
   });
   renderPieChart("#categoryStatsChart", stats.category_totals || []);
-  renderBarChart("#dailyStatsChart", stats.daily_totals || [], {
-    label: "label", value: "value", valueLabel: "jednostek",
-  });
   renderPieChart("#boatTypesChart", stats.boat_type_totals || []);
   renderPieChart("#crewGenderChart", stats.crew_gender || []);
-  renderBarChart("#dietStatsChart", stats.diet_totals || [], {
-    label: "label", value: "count", valueLabel: "osób",
-  });
+  renderDietSummaryCards("#dietStatsChart", stats.diet_totals || []);
   renderStatsInsights(stats);
+}
+
+function renderProductRanking(selector, data, { mode = "top", empty = "Brak danych." } = {}) {
+  const element = $(selector);
+  const rows = (data || []).slice(0, 10);
+  if (!rows.length) {
+    element.innerHTML = `<div class="empty">${escapeHtml(empty)}</div>`;
+    return;
+  }
+  const max = Math.max(...rows.map((item) => Number(item.order_count) || 0), 1);
+  element.innerHTML = `<div class="ranking-list ${mode === "rare" ? "rare" : "top"}">${rows.map((item, index) => {
+    const orders = Number(item.order_count) || 0;
+    const width = orders ? Math.max(5, Math.round((orders / max) * 100)) : 0;
+    const boats = formatBoatSkipperList(item.boats);
+    const emptyOrders = orders === 0;
+    return `<article class="ranking-item ${emptyOrders ? "muted" : ""}" title="${escapeHtml(item.product_name)}">
+      <div class="ranking-rank">${index + 1}</div>
+      <div class="ranking-main">
+        <div class="ranking-title">
+          <strong>${escapeHtml(item.product_name)}</strong>
+          <span>${escapeHtml(item.category || "")}</span>
+        </div>
+        <div class="ranking-meta">
+          <span>${emptyOrders ? "brak zamówień" : `${formatNumber(orders)} zamówień`}</span>
+          <span>${formatNumber(item.total_quantity || 0)} ${escapeHtml(item.unit || "")}</span>
+          <span>${escapeHtml(boats)}</span>
+        </div>
+        <div class="ranking-track"><i style="width:${width}%"></i></div>
+      </div>
+    </article>`;
+  }).join("")}</div>`;
+}
+
+function renderDietSummaryCards(selector, data) {
+  const element = $(selector);
+  const rows = (data || []).map((item) => ({
+    label: item.label,
+    count: Number(item.count) || 0,
+  })).filter((item) => item.count > 0);
+  if (!rows.length) {
+    element.innerHTML = `<div class="empty">Brak aktywnych diet i alergii w profilach załóg.</div>`;
+    return;
+  }
+  const total = rows.reduce((sum, item) => sum + item.count, 0);
+  element.innerHTML = `<div class="diet-stat-board">
+    <div class="diet-stat-total">
+      <strong>${formatNumber(total)}</strong>
+      <span>osób z dietami / alergiami</span>
+    </div>
+    <div class="diet-stat-list">${rows.map((item) => {
+      const percent = total ? Math.round((item.count / total) * 100) : 0;
+      return `<div class="diet-stat-row" title="${escapeHtml(item.label)}: ${formatNumber(item.count)} osób">
+        <span>${escapeHtml(item.label)}</span>
+        <b>${formatNumber(item.count)}</b>
+        <div><i style="width:${percent}%"></i></div>
+      </div>`;
+    }).join("")}</div>
+  </div>`;
 }
 
 function renderBarChart(selector, data, options = {}) {
@@ -1469,6 +1552,11 @@ function bindEvents() {
         $("[data-auth-tab='login']").click();
       }
     } catch (error) { toast(error.message, true); }
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && state.session) {
+      ensureSessionFresh().catch(() => {});
+    }
   });
 }
 
