@@ -183,14 +183,6 @@
           </div>
 
           <div id="reportStats" class="stat-grid"></div>
-          <article class="diet-report-card">
-            <div>
-              <span class="section-kicker">Cały rejs</span>
-              <h3>Podsumowanie diet</h3>
-            </div>
-            <div id="dietReportSummary" class="diet-report-summary"></div>
-          </article>
-
           <div class="report-actions">
             <label class="search-box">
               <span>⌕</span>
@@ -218,6 +210,55 @@
                 <span id="toggleBoatPackagesLabel">Zwiń wszystkie</span>
               </button>
               <div id="boatPackages" class="boat-packages"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="statsPanel" class="panel hidden">
+          <div class="report-toolbar">
+            <div>
+              <span class="section-kicker">Optymalizacja zaopatrzenia</span>
+              <h2>Statystyki zamówień i załóg</h2>
+              <p>Analiza ostatniego tygodnia oraz bieżącego składu floty do planowania zakupów.</p>
+            </div>
+            <label>Zakres dni
+              <input id="statsDays" type="number" min="3" max="60" value="7" />
+            </label>
+            <button id="refreshStatsButton" class="button secondary" type="button">Odśwież</button>
+          </div>
+          <div id="statsSummary" class="stat-grid stats-summary"></div>
+          <div class="stats-grid">
+            <article class="report-card chart-card">
+              <div class="card-heading"><div><span class="section-kicker">TOP</span><h3>Najczęściej zamawiane produkty</h3></div></div>
+              <div id="topProductsChart" class="chart-box"></div>
+            </article>
+            <article class="report-card chart-card">
+              <div class="card-heading"><div><span class="section-kicker">Kontrola strat</span><h3>Najrzadziej zamawiane produkty</h3></div></div>
+              <div id="rareProductsChart" class="chart-box"></div>
+            </article>
+            <article class="report-card chart-card">
+              <div class="card-heading"><div><span class="section-kicker">Tydzień</span><h3>Ilości wg kategorii</h3></div></div>
+              <div id="categoryStatsChart" class="chart-box"></div>
+            </article>
+            <article class="report-card chart-card">
+              <div class="card-heading"><div><span class="section-kicker">Rytm dostaw</span><h3>Zamówienia dzień po dniu</h3></div></div>
+              <div id="dailyStatsChart" class="chart-box"></div>
+            </article>
+            <article class="report-card chart-card">
+              <div class="card-heading"><div><span class="section-kicker">Flota</span><h3>Typy jachtów</h3></div></div>
+              <div id="boatTypesChart" class="chart-box"></div>
+            </article>
+            <article class="report-card chart-card">
+              <div class="card-heading"><div><span class="section-kicker">Załogi</span><h3>Kobiety / mężczyźni</h3></div></div>
+              <div id="crewGenderChart" class="chart-box"></div>
+            </article>
+            <article class="report-card chart-card wide">
+              <div class="card-heading"><div><span class="section-kicker">Diety i alergie</span><h3>Podsumowanie diet</h3></div></div>
+              <div id="dietStatsChart" class="chart-box"></div>
+            </article>
+            <article class="report-card chart-card wide">
+              <div class="card-heading"><div><span class="section-kicker">Sugestie</span><h3>Co warto sprawdzić przed kolejnym zakupem</h3></div></div>
+              <div id="statsInsights" class="stats-insights"></div>
             </article>
           </div>
         </section>

@@ -21,6 +21,7 @@ const state = {
   activePanel: "skipper",
   reportLocationFilter: "all",
   report: null,
+  adminStats: null,
   orderHistory: [],
   userAccounts: [],
   productNotes: new Map(),
@@ -240,16 +241,22 @@ function canManageUsers() {
   return state.profile?.role === "admin" || hasPrivilegedSkipperAccess();
 }
 
+function canViewStats() {
+  return state.profile?.role === "admin";
+}
+
 function renderNavigation() {
   const nav = $("#appNav");
   const canOrder = ["skipper", "admin"].includes(state.profile.role);
   const canReport = canViewReport();
   const canDeleteUsers = canManageUsers();
+  const canStats = canViewStats();
   nav.innerHTML = [
     canOrder ? `<button data-panel="skipper">Zamówienie jachtu</button>` : "",
     canOrder ? `<button data-panel="history">Historia zamówień</button>` : "",
     `<button data-panel="breakfast">Baza śniadań</button>`,
     canReport ? `<button data-panel="supplier">Raport zaopatrzenia</button>` : "",
+    canStats ? `<button data-panel="stats">Statystyki</button>` : "",
     canDeleteUsers ? `<button data-panel="users">Usuwanie kont</button>` : "",
   ].join("");
   nav.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => switchPanel(button.dataset.panel)));
@@ -261,6 +268,7 @@ function switchPanel(panel) {
   $("#historyPanel").classList.toggle("hidden", panel !== "history");
   $("#breakfastPanel").classList.toggle("hidden", panel !== "breakfast");
   $("#supplierPanel").classList.toggle("hidden", panel !== "supplier");
+  $("#statsPanel").classList.toggle("hidden", panel !== "stats");
   $("#userAdminPanel").classList.toggle("hidden", panel !== "users");
   $("#deadlineCard").classList.toggle("hidden", panel !== "skipper");
   $$("#appNav button").forEach((button) => button.classList.toggle("active", button.dataset.panel === panel));
@@ -285,6 +293,11 @@ function switchPanel(panel) {
     $("#heroSubtitle").textContent = "Zakupy zbiorcze i osobne paczki dla każdego jachtu.";
     $("#reportDate").value ||= tomorrowDate();
     loadReport();
+  } else if (panel === "stats") {
+    $("#roleEyebrow").textContent = "Panel administratora";
+    $("#heroTitle").textContent = "Statystyki do optymalizacji zakupów";
+    $("#heroSubtitle").textContent = "Najczęstsze produkty, rzadkie pozycje, kategorie, diety i skład floty.";
+    loadAdminStats();
   } else if (panel === "users") {
     $("#roleEyebrow").textContent = "Zarządzanie kontami";
     $("#heroTitle").textContent = "Usuwanie użytkowników";
@@ -671,7 +684,7 @@ function renderProducts() {
       </div>
       <label class="product-note">
         <span>Rodzaj</span>
-        <input type="text" value="${escapeHtml(note)}" placeholder="np. rodzaj, smak, zamiennik" aria-label="Rodzaj ${escapeHtml(product.name)}" />
+        <input type="text" value="${escapeHtml(note)}" placeholder="np. smak, wariant, marka" aria-label="Rodzaj ${escapeHtml(product.name)}" />
       </label>
     </article>`;
   }).join("") : `<div class="empty">Nie znaleziono produktu. Możesz dopisać prośbę w polu „Specjalne prośby i zamienniki”.</div>`;
@@ -969,6 +982,150 @@ async function loadUserAccounts() {
   }
 }
 
+async function loadAdminStats() {
+  if (!canViewStats()) return;
+  const days = Math.max(3, Math.min(60, Number($("#statsDays").value) || 7));
+  $("#statsSummary").innerHTML = `<div class="stat"><strong>…</strong><span>Ładowanie statystyk</span></div>`;
+  try {
+    if (state.demo) {
+      state.adminStats = buildDemoStats(days);
+    } else {
+      state.adminStats = await api("/rest/v1/rpc/get_admin_statistics", {
+        method: "POST",
+        body: { p_days: days },
+      });
+    }
+    renderAdminStats();
+  } catch (error) {
+    $("#statsSummary").innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function buildDemoStats(days = 7) {
+  return {
+    days,
+    summary: { orders: 18, active_boats: 8, total_people: 58, total_quantity: 324 },
+    product_totals: [
+      { product_name: "Jajka", category: "Nabiał i zamienniki", unit: "paczka 10 szt.", total_quantity: 28, order_count: 14 },
+      { product_name: "Banany", category: "Owoce", unit: "szt.", total_quantity: 88, order_count: 12 },
+      { product_name: "Bułki kajzerki", category: "Pieczywo", unit: "szt.", total_quantity: 74, order_count: 10 },
+      { product_name: "Mleko", category: "Śniadaniowe", unit: "l", total_quantity: 21, order_count: 9 },
+    ],
+    least_products: [
+      { product_name: "Awokado", category: "Warzywa", unit: "szt.", total_quantity: 2, order_count: 1 },
+      { product_name: "Winogrona", category: "Owoce", unit: "opak.", total_quantity: 1, order_count: 1 },
+    ],
+    category_totals: [
+      { label: "Pieczywo", value: 112 },
+      { label: "Nabiał i zamienniki", value: 84 },
+      { label: "Owoce", value: 96 },
+      { label: "Warzywa", value: 32 },
+    ],
+    daily_totals: Array.from({ length: days }, (_, index) => ({ label: `D-${days - index - 1}`, value: 20 + index * 7 })),
+    diet_totals: DEMO_REPORT.diet_totals,
+    boat_type_totals: [
+      { label: "Rekreacyjne", value: 4 },
+      { label: "Szkoleniowe", value: 2 },
+      { label: "Wyprawowe", value: 2 },
+    ],
+    crew_gender: [
+      { label: "Kobiety", value: 26 },
+      { label: "Mężczyźni", value: 32 },
+    ],
+  };
+}
+
+function renderAdminStats() {
+  const stats = state.adminStats || buildDemoStats();
+  const summary = stats.summary || {};
+  $("#statsSummary").innerHTML = [
+    [summary.orders || 0, `Zamówienia / ${stats.days || 7} dni`],
+    [summary.active_boats || 0, "Aktywne jachty"],
+    [summary.total_people || 0, "Osoby na jachtach"],
+    [formatNumber(summary.total_quantity || 0), "Łączna ilość produktów"],
+  ].map(([value, label]) => `<div class="stat"><strong>${value}</strong><span>${label}</span></div>`).join("");
+
+  renderBarChart("#topProductsChart", (stats.product_totals || []).slice(0, 10), {
+    label: "product_name", value: "order_count", valueLabel: "zamówień",
+    sublabel: (item) => `${formatNumber(item.total_quantity)} ${item.unit || ""}`,
+  });
+  renderBarChart("#rareProductsChart", (stats.least_products || []).slice(0, 10), {
+    label: "product_name", value: "order_count", valueLabel: "zamówień",
+    sublabel: (item) => `${formatNumber(item.total_quantity || 0)} ${item.unit || ""}`,
+    inverse: true,
+  });
+  renderPieChart("#categoryStatsChart", stats.category_totals || []);
+  renderBarChart("#dailyStatsChart", stats.daily_totals || [], {
+    label: "label", value: "value", valueLabel: "jednostek",
+  });
+  renderPieChart("#boatTypesChart", stats.boat_type_totals || []);
+  renderPieChart("#crewGenderChart", stats.crew_gender || []);
+  renderBarChart("#dietStatsChart", stats.diet_totals || [], {
+    label: "label", value: "count", valueLabel: "osób",
+  });
+  renderStatsInsights(stats);
+}
+
+function renderBarChart(selector, data, options = {}) {
+  const element = $(selector);
+  const rows = (data || []).filter((item) => Number(item[options.value]) > 0);
+  if (!rows.length) {
+    element.innerHTML = `<div class="empty">Brak danych w wybranym zakresie.</div>`;
+    return;
+  }
+  const max = Math.max(...rows.map((item) => Number(item[options.value]) || 0), 1);
+  element.innerHTML = `<div class="bar-chart">${rows.map((item) => {
+    const value = Number(item[options.value]) || 0;
+    const label = item[options.label] || item.label || "Pozycja";
+    const width = Math.max(4, Math.round((value / max) * 100));
+    const sublabel = typeof options.sublabel === "function" ? options.sublabel(item) : "";
+    return `<div class="bar-row" title="${escapeHtml(label)}: ${formatNumber(value)} ${escapeHtml(options.valueLabel || "")}">
+      <div class="bar-label"><strong>${escapeHtml(label)}</strong>${sublabel ? `<small>${escapeHtml(sublabel)}</small>` : ""}</div>
+      <div class="bar-track"><span style="width:${width}%"></span></div>
+      <b>${formatNumber(value)}</b>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function renderPieChart(selector, data) {
+  const element = $(selector);
+  const rows = (data || []).map((item) => ({ label: item.label, value: Number(item.value ?? item.count) || 0 })).filter((item) => item.value > 0);
+  if (!rows.length) {
+    element.innerHTML = `<div class="empty">Brak danych do wykresu.</div>`;
+    return;
+  }
+  const colors = ["#e50067", "#087ca7", "#ffd84d", "#0b4f5c", "#62c2e7", "#7bbf8e", "#ff9f6e"];
+  const total = rows.reduce((sum, item) => sum + item.value, 0);
+  let cursor = 0;
+  const segments = rows.map((item, index) => {
+    const start = cursor;
+    const end = cursor + (item.value / total) * 100;
+    cursor = end;
+    return `${colors[index % colors.length]} ${start}% ${end}%`;
+  }).join(", ");
+  element.innerHTML = `<div class="pie-chart">
+    <div class="pie" style="background: conic-gradient(${segments});" title="Razem: ${formatNumber(total)}"></div>
+    <div class="pie-legend">${rows.map((item, index) => `
+      <span title="${escapeHtml(item.label)}: ${formatNumber(item.value)}">
+        <i style="background:${colors[index % colors.length]}"></i>${escapeHtml(item.label)} <strong>${formatNumber(item.value)}</strong>
+      </span>`).join("")}</div>
+  </div>`;
+}
+
+function renderStatsInsights(stats) {
+  const top = stats.product_totals?.[0];
+  const rare = stats.least_products?.[0];
+  const topCategory = [...(stats.category_totals || [])].sort((a, b) => Number(b.value) - Number(a.value))[0];
+  const dietSum = (stats.diet_totals || []).reduce((sum, item) => sum + Number(item.count || 0), 0);
+  $("#statsInsights").innerHTML = [
+    top ? `Najczęściej pojawia się <strong>${escapeHtml(top.product_name)}</strong> — warto trzymać stały zapas bazowy.` : "",
+    rare ? `Najrzadziej zamawiane: <strong>${escapeHtml(rare.product_name)}</strong> — można kupować dopiero po realnym zamówieniu.` : "",
+    topCategory ? `Najmocniejsza kategoria tygodnia: <strong>${escapeHtml(topCategory.label)}</strong>.` : "",
+    dietSum ? `Aktualnie zgłoszono <strong>${formatNumber(dietSum)}</strong> osób z dietami/alergiami — uwzględnić przy zamiennikach.` : "Brak aktywnych diet w profilach załóg.",
+    "Dodatkowo warto obserwować produkty o dużych skokach dziennych — to kandydaci do zapasu awaryjnego.",
+  ].filter(Boolean).map((text) => `<div class="insight">${text}</div>`).join("");
+}
+
 function renderUserAdmin() {
   const card = $("#userAdminCard");
   if (!card) return;
@@ -1127,11 +1284,6 @@ function renderReport() {
           : "Kliknij, aby wyświetlić listę"
         : "Wszystkie jachty złożyły zamówienie"}</small>
     </button>`;
-  const dietTotals = report.diet_totals || [];
-  $("#dietReportSummary").innerHTML = dietTotals.length
-    ? dietTotals.map((diet) => `<div class="diet-total"><strong>${formatNumber(diet.count)}</strong><span>${escapeHtml(diet.label)}</span></div>`).join("")
-    : `<span class="empty-inline">Brak zgłoszonych diet na aktywnych jachtach.</span>`;
-
   renderReportLocationTabs();
   const query = $("#reportSearch").value.trim().toLocaleLowerCase("pl");
   const consolidated = buildConsolidatedFromBoats(filteredBoats)
@@ -1198,6 +1350,8 @@ function bindEvents() {
   $("#productSearch").addEventListener("input", renderProducts);
   $("#recipeSearch").addEventListener("input", renderRecipes);
   $("#refreshHistoryButton").addEventListener("click", loadOrderHistory);
+  $("#refreshStatsButton").addEventListener("click", loadAdminStats);
+  $("#statsDays").addEventListener("change", loadAdminStats);
   $("#reportSearch").addEventListener("input", renderReport);
   $("#reportStats").addEventListener("click", (event) => {
     if (!event.target.closest("#missingBoatsStat")) return;

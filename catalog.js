@@ -133,7 +133,8 @@ export const PRODUCTS = [
   ["Wege masło", "Śniadaniowe", "szt."], ["Mąka", "Śniadaniowe", "kg"],
   ["Cukier", "Śniadaniowe", "kg"], ["Cukier wanilinowy", "Śniadaniowe", "opak."],
   ["Banany", "Owoce", "szt."], ["Jabłka", "Owoce", "szt."],
-  ["Gruszki", "Owoce", "szt."], ["Winogrona", "Owoce", "opak."], ["Truskawki", "Owoce", "opak."],
+  ["Gruszki", "Owoce", "szt."], ["Winogrona", "Owoce", "opak."],
+  ["Borówki", "Owoce", "opak."], ["Maliny", "Owoce", "opak."],
 ].map(([name, category, unit], index) => ({
   id: `demo-${index + 1}`, name, category, unit, sort_order: index + 1,
 }));

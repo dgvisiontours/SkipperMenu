@@ -118,12 +118,14 @@ insert into public.products (name, category, unit, sort_order) values
 ('Wege masło','Śniadaniowe','szt.',59),('Mąka','Śniadaniowe','kg',60),
 ('Cukier','Śniadaniowe','kg',61),('Cukier wanilinowy','Śniadaniowe','opak.',62),
 ('Banany','Owoce','szt.',64),('Jabłka','Owoce','szt.',65),
-('Gruszki','Owoce','szt.',66),('Winogrona','Owoce','opak.',67),('Truskawki','Owoce','opak.',68)
+('Gruszki','Owoce','szt.',66),('Winogrona','Owoce','opak.',67),
+('Borówki','Owoce','opak.',68),('Maliny','Owoce','opak.',69)
 on conflict (name) do update set
   category = excluded.category, unit = excluded.unit, sort_order = excluded.sort_order;
 
 update public.products set active = false where name = 'Ryba wędzona';
 update public.products set active = false where name = 'Olej';
+update public.products set active = false where name = 'Truskawki';
 update public.products set unit = 'paczka 10 szt.' where name = 'Jajka';
 update public.products set unit = 'paczka 12 szt.' where name = 'Parówki';
 
@@ -659,6 +661,159 @@ begin
 end;
 $$;
 
+create or replace function public.get_admin_statistics(p_days integer default 7)
+returns jsonb
+language plpgsql stable security definer
+set search_path = public
+as $$
+declare
+  v_days integer := greatest(3, least(coalesce(p_days, 7), 60));
+  v_today date := (now() at time zone 'Europe/Warsaw')::date;
+  v_start date;
+  result jsonb;
+begin
+  if coalesce(public.current_app_role() <> 'admin', true) then
+    raise exception 'Brak uprawnień do statystyk administratora.';
+  end if;
+
+  v_start := v_today - (v_days - 1);
+
+  select jsonb_build_object(
+    'days', v_days,
+    'summary', jsonb_build_object(
+      'orders', (select count(*) from public.orders where target_date between v_start and v_today),
+      'active_boats', (select count(*) from public.boats where active),
+      'total_people', coalesce((select sum(coalesce((crew_profile->>'total')::integer, 0)) from public.boats where active), 0),
+      'total_quantity', coalesce((
+        select sum(oi.quantity)
+        from public.order_items oi
+        join public.orders o on o.id = oi.order_id
+        join public.products p on p.id = oi.product_id and p.active
+        where o.target_date between v_start and v_today
+      ), 0)
+    ),
+    'product_totals', coalesce((
+      select jsonb_agg(row_data order by order_count desc, total_quantity desc, product_name)
+      from (
+        select p.name as product_name, p.category, p.unit,
+          sum(oi.quantity) as total_quantity,
+          count(distinct o.id) as order_count,
+          count(distinct o.boat_id) as boat_count,
+          jsonb_build_object(
+            'product_name', p.name,
+            'category', p.category,
+            'unit', p.unit,
+            'total_quantity', sum(oi.quantity),
+            'order_count', count(distinct o.id),
+            'boat_count', count(distinct o.boat_id)
+          ) as row_data
+        from public.order_items oi
+        join public.orders o on o.id = oi.order_id and o.target_date between v_start and v_today
+        join public.products p on p.id = oi.product_id and p.active
+        group by p.id, p.name, p.category, p.unit
+        order by order_count desc, total_quantity desc
+        limit 20
+      ) q
+    ), '[]'::jsonb),
+    'least_products', coalesce((
+      select jsonb_agg(row_data order by order_count, total_quantity, product_name)
+      from (
+        select p.name as product_name, coalesce(t.order_count, 0) as order_count, coalesce(t.total_quantity, 0) as total_quantity,
+          jsonb_build_object(
+            'product_name', p.name,
+            'category', p.category,
+            'unit', p.unit,
+            'total_quantity', coalesce(t.total_quantity, 0),
+            'order_count', coalesce(t.order_count, 0),
+            'boat_count', coalesce(t.boat_count, 0)
+          ) as row_data
+        from public.products p
+        left join (
+          select oi.product_id, sum(oi.quantity) as total_quantity,
+            count(distinct o.id) as order_count,
+            count(distinct o.boat_id) as boat_count
+          from public.order_items oi
+          join public.orders o on o.id = oi.order_id and o.target_date between v_start and v_today
+          group by oi.product_id
+        ) t on t.product_id = p.id
+        where p.active
+        order by coalesce(t.order_count, 0), coalesce(t.total_quantity, 0), p.name
+        limit 12
+      ) q
+    ), '[]'::jsonb),
+    'category_totals', coalesce((
+      select jsonb_agg(jsonb_build_object('label', category, 'value', total_quantity) order by total_quantity desc)
+      from (
+        select p.category, sum(oi.quantity) as total_quantity
+        from public.order_items oi
+        join public.orders o on o.id = oi.order_id and o.target_date between v_start and v_today
+        join public.products p on p.id = oi.product_id and p.active
+        group by p.category
+      ) q
+    ), '[]'::jsonb),
+    'daily_totals', coalesce((
+      select jsonb_agg(jsonb_build_object('label', to_char(day, 'DD.MM'), 'value', coalesce(total_quantity, 0)) order by day)
+      from (
+        select d::date as day, sum(case when p.id is not null then oi.quantity else 0 end) as total_quantity
+        from generate_series(v_start, v_today, interval '1 day') d
+        left join public.orders o on o.target_date = d::date
+        left join public.order_items oi on oi.order_id = o.id
+        left join public.products p on p.id = oi.product_id and p.active
+        group by d::date
+      ) q
+    ), '[]'::jsonb),
+    'diet_totals', coalesce((
+      select jsonb_agg(jsonb_build_object('label', diet_label, 'count', diet_count) order by sort_order, diet_label)
+      from (
+        select 1 as sort_order, 'Wegetariańska'::text as diet_label,
+          sum(coalesce((p.diet_preferences->'vegetarian'->>'count')::integer, 0)) as diet_count
+        from public.profiles p join public.boats b on b.id = p.boat_id
+        where b.active and coalesce((p.diet_preferences->'vegetarian'->>'enabled')::boolean, false)
+        union all
+        select 2, 'Bez laktozy',
+          sum(coalesce((p.diet_preferences->'lactose_free'->>'count')::integer, 0))
+        from public.profiles p join public.boats b on b.id = p.boat_id
+        where b.active and coalesce((p.diet_preferences->'lactose_free'->>'enabled')::boolean, false)
+        union all
+        select 3, 'Bez glutenu',
+          sum(coalesce((p.diet_preferences->'gluten_free'->>'count')::integer, 0))
+        from public.profiles p join public.boats b on b.id = p.boat_id
+        where b.active and coalesce((p.diet_preferences->'gluten_free'->>'enabled')::boolean, false)
+        union all
+        select 4, trim(p.diet_preferences->'other'->>'description'),
+          sum(coalesce((p.diet_preferences->'other'->>'count')::integer, 0))
+        from public.profiles p join public.boats b on b.id = p.boat_id
+        where b.active
+          and coalesce((p.diet_preferences->'other'->>'enabled')::boolean, false)
+          and nullif(trim(p.diet_preferences->'other'->>'description'), '') is not null
+        group by lower(trim(p.diet_preferences->'other'->>'description')),
+          trim(p.diet_preferences->'other'->>'description')
+      ) diets
+      where coalesce(diet_count, 0) > 0
+    ), '[]'::jsonb),
+    'boat_type_totals', coalesce((
+      select jsonb_agg(jsonb_build_object('label', label, 'value', count) order by label)
+      from (
+        select case crew_profile->>'boat_type'
+          when 'training' then 'Szkoleniowe'
+          when 'expedition' then 'Wyprawowe'
+          else 'Rekreacyjne'
+        end as label, count(*) as count
+        from public.boats
+        where active
+        group by 1
+      ) q
+    ), '[]'::jsonb),
+    'crew_gender', jsonb_build_array(
+      jsonb_build_object('label', 'Kobiety', 'value', coalesce((select sum(coalesce((crew_profile->>'women')::integer, 0)) from public.boats where active), 0)),
+      jsonb_build_object('label', 'Mężczyźni', 'value', coalesce((select sum(coalesce((crew_profile->>'men')::integer, 0)) from public.boats where active), 0))
+    )
+  ) into result;
+
+  return result;
+end;
+$$;
+
 create or replace function public.list_user_accounts()
 returns jsonb
 language plpgsql security definer
@@ -748,6 +903,7 @@ $$;
 
 grant execute on function public.submit_order(date,text,text,text[],jsonb,text) to authenticated;
 grant execute on function public.get_supplier_report(date) to authenticated;
+grant execute on function public.get_admin_statistics(integer) to authenticated;
 grant execute on function public.list_user_accounts() to authenticated;
 grant execute on function public.delete_user_account(text) to authenticated;
 grant execute on function public.save_diet_preferences(jsonb) to authenticated;
