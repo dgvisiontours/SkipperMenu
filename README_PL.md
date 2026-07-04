@@ -22,7 +22,7 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - przy produkcie można dopisać **rodzaj** / wariant, który trafia do osobnej kolumny raportu;
 - specjalne prośby i zamienniki są dodawane jako osobne pozycje listy;
 - historia zamówień sternika pokazująca wcześniejsze paczki do kontroli dostawy;
-- panel administratora ze statystykami produktów, kategorii, diet, typów jachtów i składu załóg;
+- panel statystyk dla administratora i kont z uprawnieniem do usuwania użytkowników: produkty, kategorie, diety, typy jachtów, skład załóg oraz kontekst jacht/sternik przy produktach;
 - eksport listy zakupów do CSV i drukowanie/zapis do PDF;
 - logowanie i role: sternik, zaopatrzeniowiec, administrator;
 - wybrane konta sterników mogą dodatkowo widzieć raport zaopatrzenia i usuwać konta użytkowników;

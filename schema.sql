@@ -672,7 +672,7 @@ declare
   v_start date;
   result jsonb;
 begin
-  if coalesce(public.current_app_role() <> 'admin', true) then
+  if not public.can_manage_user_accounts() then
     raise exception 'Brak uprawnień do statystyk administratora.';
   end if;
 
@@ -705,7 +705,25 @@ begin
             'unit', p.unit,
             'total_quantity', sum(oi.quantity),
             'order_count', count(distinct o.id),
-            'boat_count', count(distinct o.boat_id)
+            'boat_count', count(distinct o.boat_id),
+            'boats', coalesce((
+              select jsonb_agg(jsonb_build_object(
+                'boat_name', boat_name,
+                'skipper_name', skipper_name,
+                'quantity', quantity
+              ) order by quantity desc, boat_name)
+              from (
+                select b2.name as boat_name, pr2.full_name as skipper_name, sum(oi2.quantity) as quantity
+                from public.order_items oi2
+                join public.orders o2 on o2.id = oi2.order_id and o2.target_date between v_start and v_today
+                join public.boats b2 on b2.id = o2.boat_id
+                left join public.profiles pr2 on pr2.id = o2.submitted_by
+                where oi2.product_id = p.id
+                group by b2.name, pr2.full_name
+                order by quantity desc, b2.name
+                limit 8
+              ) boats_q
+            ), '[]'::jsonb)
           ) as row_data
         from public.order_items oi
         join public.orders o on o.id = oi.order_id and o.target_date between v_start and v_today
@@ -725,7 +743,25 @@ begin
             'unit', p.unit,
             'total_quantity', coalesce(t.total_quantity, 0),
             'order_count', coalesce(t.order_count, 0),
-            'boat_count', coalesce(t.boat_count, 0)
+            'boat_count', coalesce(t.boat_count, 0),
+            'boats', coalesce((
+              select jsonb_agg(jsonb_build_object(
+                'boat_name', boat_name,
+                'skipper_name', skipper_name,
+                'quantity', quantity
+              ) order by quantity desc, boat_name)
+              from (
+                select b2.name as boat_name, pr2.full_name as skipper_name, sum(oi2.quantity) as quantity
+                from public.order_items oi2
+                join public.orders o2 on o2.id = oi2.order_id and o2.target_date between v_start and v_today
+                join public.boats b2 on b2.id = o2.boat_id
+                left join public.profiles pr2 on pr2.id = o2.submitted_by
+                where oi2.product_id = p.id
+                group by b2.name, pr2.full_name
+                order by quantity desc, b2.name
+                limit 8
+              ) boats_q
+            ), '[]'::jsonb)
           ) as row_data
         from public.products p
         left join (

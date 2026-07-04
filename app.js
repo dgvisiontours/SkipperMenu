@@ -242,7 +242,7 @@ function canManageUsers() {
 }
 
 function canViewStats() {
-  return state.profile?.role === "admin";
+  return canManageUsers();
 }
 
 function renderNavigation() {
@@ -1006,14 +1006,14 @@ function buildDemoStats(days = 7) {
     days,
     summary: { orders: 18, active_boats: 8, total_people: 58, total_quantity: 324 },
     product_totals: [
-      { product_name: "Jajka", category: "Nabiał i zamienniki", unit: "paczka 10 szt.", total_quantity: 28, order_count: 14 },
-      { product_name: "Banany", category: "Owoce", unit: "szt.", total_quantity: 88, order_count: 12 },
-      { product_name: "Bułki kajzerki", category: "Pieczywo", unit: "szt.", total_quantity: 74, order_count: 10 },
-      { product_name: "Mleko", category: "Śniadaniowe", unit: "l", total_quantity: 21, order_count: 9 },
+      { product_name: "Jajka", category: "Nabiał i zamienniki", unit: "paczka 10 szt.", total_quantity: 28, order_count: 14, boats: [{ boat_name: "Bajka", skipper_name: "Maciek" }, { boat_name: "Czapla", skipper_name: "Oliwka" }] },
+      { product_name: "Banany", category: "Owoce", unit: "szt.", total_quantity: 88, order_count: 12, boats: [{ boat_name: "Bryza", skipper_name: "Kuba" }, { boat_name: "Foka", skipper_name: "Olga" }] },
+      { product_name: "Bułki kajzerki", category: "Pieczywo", unit: "szt.", total_quantity: 74, order_count: 10, boats: [{ boat_name: "Delfin", skipper_name: "Rafał" }] },
+      { product_name: "Mleko", category: "Śniadaniowe", unit: "l", total_quantity: 21, order_count: 9, boats: [{ boat_name: "Goplana", skipper_name: "Krzysiu" }] },
     ],
     least_products: [
-      { product_name: "Awokado", category: "Warzywa", unit: "szt.", total_quantity: 2, order_count: 1 },
-      { product_name: "Winogrona", category: "Owoce", unit: "opak.", total_quantity: 1, order_count: 1 },
+      { product_name: "Awokado", category: "Warzywa", unit: "szt.", total_quantity: 2, order_count: 1, boats: [{ boat_name: "Goplana", skipper_name: "Krzysiu" }] },
+      { product_name: "Winogrona", category: "Owoce", unit: "opak.", total_quantity: 1, order_count: 1, boats: [{ boat_name: "Foka", skipper_name: "Olga" }] },
     ],
     category_totals: [
       { label: "Pieczywo", value: 112 },
@@ -1047,11 +1047,13 @@ function renderAdminStats() {
 
   renderBarChart("#topProductsChart", (stats.product_totals || []).slice(0, 10), {
     label: "product_name", value: "order_count", valueLabel: "zamówień",
-    sublabel: (item) => `${formatNumber(item.total_quantity)} ${item.unit || ""}`,
+    sublabel: (item) => `${formatNumber(item.total_quantity)} ${item.unit || ""} · ${formatBoatSkipperList(item.boats)}`,
   });
   renderBarChart("#rareProductsChart", (stats.least_products || []).slice(0, 10), {
     label: "product_name", value: "order_count", valueLabel: "zamówień",
-    sublabel: (item) => `${formatNumber(item.total_quantity || 0)} ${item.unit || ""}`,
+    sublabel: (item) => item.order_count
+      ? `${formatNumber(item.total_quantity || 0)} ${item.unit || ""} · ${formatBoatSkipperList(item.boats)}`
+      : "Brak zamówień w tym zakresie",
     inverse: true,
   });
   renderPieChart("#categoryStatsChart", stats.category_totals || []);
@@ -1085,6 +1087,15 @@ function renderBarChart(selector, data, options = {}) {
       <b>${formatNumber(value)}</b>
     </div>`;
   }).join("")}</div>`;
+}
+
+function formatBoatSkipperList(boats = []) {
+  const rows = (boats || []).slice(0, 3).map((boat) => {
+    const skipper = boat.skipper_name ? ` — ${boat.skipper_name}` : "";
+    return `${boat.boat_name || "jacht"}${skipper}`;
+  });
+  const extra = boats.length > 3 ? ` +${boats.length - 3}` : "";
+  return rows.length ? `${rows.join(", ")}${extra}` : "brak jachtów";
 }
 
 function renderPieChart(selector, data) {
