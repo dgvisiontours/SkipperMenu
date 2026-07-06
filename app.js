@@ -34,7 +34,7 @@ const state = {
 };
 
 const DEMO_REPORT = {
-  target_date: tomorrowDate(),
+  target_date: currentOrderTargetDate(),
   total_boats: 8,
   total_people: 58,
   submitted_boats: 6,
@@ -113,12 +113,41 @@ function shiftDate(dateString, days) {
   return date.toISOString().slice(0, 10);
 }
 
+function localMinutes() {
+  const { hour, minute } = localParts();
+  return Number(hour) * 60 + Number(minute);
+}
+
+function configuredOpenMinutes() {
+  return CONFIG.ORDER_OPEN_HOUR * 60 + (CONFIG.ORDER_OPEN_MINUTE || 0);
+}
+
+function configuredCutoffMinutes() {
+  return CONFIG.CUTOFF_HOUR * 60 + (CONFIG.CUTOFF_MINUTE || 0);
+}
+
+function formatConfiguredTime(hour, minute = 0) {
+  return `${String(hour).padStart(2, "0")}:${String(minute || 0).padStart(2, "0")}`;
+}
+
+function orderWindowLabel() {
+  return `${formatConfiguredTime(CONFIG.ORDER_OPEN_HOUR, CONFIG.ORDER_OPEN_MINUTE)}–${formatConfiguredTime(CONFIG.CUTOFF_HOUR, CONFIG.CUTOFF_MINUTE)}`;
+}
+
+function currentOrderTargetDate() {
+  const minutes = localMinutes();
+  return shiftDate(todayDate(), minutes < configuredCutoffMinutes() ? 1 : 2);
+}
+
+function currentReportTargetDate() {
+  const minutes = localMinutes();
+  return shiftDate(todayDate(), minutes >= configuredOpenMinutes() ? 2 : 1);
+}
+
 function orderWindowState() {
-  const { hour } = localParts();
-  const currentHour = Number(hour);
-  if (currentHour < CONFIG.ORDER_OPEN_HOUR) return "before";
-  if (currentHour >= CONFIG.CUTOFF_HOUR) return "after";
-  return "open";
+  const minutes = localMinutes();
+  if (minutes >= configuredOpenMinutes() || minutes < configuredCutoffMinutes()) return "open";
+  return "before";
 }
 
 function formatDate(dateString) {
@@ -308,8 +337,8 @@ function switchPanel(panel) {
   $$("#appNav button").forEach((button) => button.classList.toggle("active", button.dataset.panel === panel));
   if (panel === "skipper") {
     $("#roleEyebrow").textContent = "Panel sternika";
-    $("#heroTitle").textContent = "Zamówienie na jutro";
-    $("#heroSubtitle").textContent = `${state.profile.boats?.name || "Twój jacht"} · wydanie ${formatDate(tomorrowDate())}`;
+    $("#heroTitle").textContent = "Zamówienie na najbliższe wydanie";
+    $("#heroSubtitle").textContent = `${state.profile.boats?.name || "Twój jacht"} · wydanie ${formatDate(currentOrderTargetDate())}`;
     loadMyOrder();
   } else if (panel === "breakfast") {
     $("#roleEyebrow").textContent = "Baza śniadań";
@@ -325,7 +354,7 @@ function switchPanel(panel) {
     $("#roleEyebrow").textContent = "Panel zaopatrzeniowca";
     $("#heroTitle").textContent = "Jedna lista. Cała flotylla.";
     $("#heroSubtitle").textContent = "Zakupy zbiorcze i osobne paczki dla każdego jachtu.";
-    $("#reportDate").value ||= tomorrowDate();
+    $("#reportDate").value ||= currentReportTargetDate();
     loadReport();
   } else if (panel === "stats") {
     $("#roleEyebrow").textContent = "Panel administratora";
@@ -345,15 +374,15 @@ function updateDeadline() {
   const windowState = orderWindowState();
   const closed = windowState !== "open";
   $("#deadlineCard").classList.toggle("closed", closed);
-  $("#deadlineTime").textContent = `${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00–${String(CONFIG.CUTOFF_HOUR).padStart(2, "0")}:00`;
+  $("#deadlineTime").textContent = orderWindowLabel();
   $("#deadlineStatus").textContent = windowState === "before"
-    ? `Zamówienia otwierają się o ${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00`
+    ? `Zamówienia otwierają się o ${formatConfiguredTime(CONFIG.ORDER_OPEN_HOUR, CONFIG.ORDER_OPEN_MINUTE)}`
     : windowState === "after"
       ? "Przyjmowanie zamówień zakończone"
       : "Zamówienia są otwarte";
   $("#submitOrderButton").disabled = closed && state.profile.role === "skipper";
   $("#submitHeadline").textContent = windowState === "before"
-    ? `Zamówienia można zmieniać od ${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00`
+    ? `Zamówienia można składać od ${formatConfiguredTime(CONFIG.ORDER_OPEN_HOUR, CONFIG.ORDER_OPEN_MINUTE)} do ${formatConfiguredTime(CONFIG.CUTOFF_HOUR, CONFIG.CUTOFF_MINUTE)}`
     : windowState === "after"
       ? "Termin składania zamówień minął"
       : "Zamówienie można jeszcze edytować";
@@ -613,7 +642,7 @@ async function saveDietPreferences(event) {
       renderSpecialRequests();
       $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
       $("#userLabel").textContent = `${state.profile.full_name} · ${result.boat_name}`;
-      $("#heroSubtitle").textContent = `${result.boat_name} · wydanie ${formatDate(tomorrowDate())}`;
+      $("#heroSubtitle").textContent = `${result.boat_name} · wydanie ${formatDate(currentOrderTargetDate())}`;
       renderProducts();
       renderDietSummary();
       closeDietModal();
@@ -823,7 +852,7 @@ async function loadMyOrder() {
     return;
   }
   try {
-    const rows = await api(`/rest/v1/orders?select=id,special_requests,location,submitted_at,order_items(product_id,quantity,item_note)&target_date=eq.${tomorrowDate()}&boat_id=eq.${state.profile.boat_id}&limit=1`);
+    const rows = await api(`/rest/v1/orders?select=id,special_requests,location,submitted_at,order_items(product_id,quantity,item_note)&target_date=eq.${currentOrderTargetDate()}&boat_id=eq.${state.profile.boat_id}&limit=1`);
     const order = rows[0];
     if (order) {
       order.order_items.forEach((item) => {
@@ -856,8 +885,8 @@ async function submitOrder() {
   const windowState = orderWindowState();
   if (windowState !== "open" && state.profile.role === "skipper") {
     const message = windowState === "before"
-      ? `Zamówienia można zmieniać od ${String(CONFIG.ORDER_OPEN_HOUR).padStart(2, "0")}:00.`
-      : `Termin minął o ${String(CONFIG.CUTOFF_HOUR).padStart(2, "0")}:00. Skontaktuj się z zaopatrzeniowcem.`;
+      ? `Zamówienia można składać od ${formatConfiguredTime(CONFIG.ORDER_OPEN_HOUR, CONFIG.ORDER_OPEN_MINUTE)} do ${formatConfiguredTime(CONFIG.CUTOFF_HOUR, CONFIG.CUTOFF_MINUTE)}.`
+      : `Termin minął o ${formatConfiguredTime(CONFIG.CUTOFF_HOUR, CONFIG.CUTOFF_MINUTE)}. Skontaktuj się z zaopatrzeniowcem.`;
     toast(message, true);
     return;
   }
@@ -873,7 +902,7 @@ async function submitOrder() {
     return;
   }
   const payload = {
-    p_target_date: tomorrowDate(),
+    p_target_date: currentOrderTargetDate(),
     p_diet_notes: dietPreferencesText(),
     p_special_requests: serializeSpecialRequests(),
     p_breakfast_choices: [],
@@ -899,7 +928,7 @@ async function submitOrder() {
 
 async function loadReport() {
   try {
-    const date = $("#reportDate").value || tomorrowDate();
+    const date = $("#reportDate").value || currentReportTargetDate();
     state.report = state.demo ? { ...DEMO_REPORT, target_date: date } : await api("/rest/v1/rpc/get_supplier_report", {
       method: "POST", body: { p_target_date: date },
     });
@@ -921,7 +950,7 @@ async function loadOrderHistory() {
     if (state.demo) {
       orders = [
         {
-          target_date: tomorrowDate(),
+          target_date: currentOrderTargetDate(),
           submitted_at: new Date().toISOString(),
           location: "cruise",
           special_requests: "Zgrzewka wody gazowanej",
@@ -949,8 +978,7 @@ function buildDeliveryHistory(orders) {
   orders.forEach((order) => {
     (order.order_items || []).forEach((item) => {
       const product = item.products || {};
-      const isBread = product.category === "Pieczywo";
-      const deliveryDate = isBread ? shiftDate(order.target_date, 1) : order.target_date;
+      const deliveryDate = order.target_date;
       const delivery = deliveries.get(deliveryDate) || {
         target_date: deliveryDate,
         submitted_at: order.submitted_at,
@@ -966,7 +994,7 @@ function buildDeliveryHistory(orders) {
         product.category || "Inne",
         product.sort_order || 9999,
         item.item_note || "",
-        isBread ? "Pieczywo zamówione dzień wcześniej" : "",
+        "",
       ]);
       deliveries.set(deliveryDate, delivery);
     });

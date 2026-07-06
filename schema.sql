@@ -115,7 +115,7 @@ insert into public.products (name, category, unit, sort_order) values
 ('Granola','Śniadaniowe','opak.',53),('Owsianka','Śniadaniowe','opak.',54),
 ('Krem czekoladowy','Śniadaniowe','słoik',55),('Dżem','Śniadaniowe','słoik',56),('Pasta do smarowania','Śniadaniowe','szt.',57),
 ('Rodzynki','Śniadaniowe','opak.',57),('Masło','Śniadaniowe','szt.',58),
-('Wege masło','Śniadaniowe','szt.',59),('Mąka','Śniadaniowe','kg',60),
+('Mąka','Śniadaniowe','kg',60),
 ('Cukier','Śniadaniowe','kg',61),('Cukier wanilinowy','Śniadaniowe','opak.',62),
 ('Banany','Owoce','szt.',64),('Jabłka','Owoce','szt.',65),
 ('Gruszki','Owoce','szt.',66),('Winogrona','Owoce','opak.',67),
@@ -126,6 +126,7 @@ on conflict (name) do update set
 update public.products set active = false where name = 'Ryba wędzona';
 update public.products set active = false where name = 'Olej';
 update public.products set active = false where name = 'Truskawki';
+update public.products set active = false where name = 'Wege masło';
 update public.products set unit = 'paczka 10 szt.' where name = 'Jajka';
 update public.products set unit = 'paczka 12 szt.' where name = 'Parówki';
 
@@ -471,6 +472,8 @@ declare
   v_boat_id uuid;
   v_order_id uuid;
   v_local_now timestamp;
+  v_minutes integer;
+  v_expected_target date;
   v_diet_preferences jsonb;
   v_crew_profile jsonb;
 begin
@@ -489,14 +492,16 @@ begin
 
   v_local_now := now() at time zone 'Europe/Warsaw';
   if v_role = 'skipper' then
-    if p_target_date <> v_local_now::date + 1 then
-      raise exception 'Sternik może zamówić wyłącznie na następny dzień.';
+    v_minutes := extract(hour from v_local_now)::integer * 60 + extract(minute from v_local_now)::integer;
+    if v_minutes >= 18 * 60 then
+      v_expected_target := v_local_now::date + 2;
+    elsif v_minutes < 9 * 60 + 30 then
+      v_expected_target := v_local_now::date + 1;
+    else
+      raise exception 'Zamówienia można składać od 18:00 do 09:30.';
     end if;
-    if v_local_now::time < time '09:00' then
-      raise exception 'Zamówienia można zmieniać od 09:00.';
-    end if;
-    if v_local_now::time >= time '15:00' then
-      raise exception 'Termin składania zamówień minął o 15:00.';
+    if p_target_date <> v_expected_target then
+      raise exception 'Sternik może zamówić wyłącznie na najbliższy termin dostawy.';
     end if;
   end if;
 
@@ -602,11 +607,7 @@ begin
         ) as row_data
         from public.order_items oi
         join public.products p on p.id = oi.product_id and p.active
-        join public.orders o on o.id = oi.order_id
-          and (
-            (p.category = 'Pieczywo' and o.target_date = p_target_date - 1)
-            or (p.category <> 'Pieczywo' and o.target_date = p_target_date)
-          )
+        join public.orders o on o.id = oi.order_id and o.target_date = p_target_date
         join public.boats b on b.id = o.boat_id
         group by p.id, p.name, p.category, p.unit, p.sort_order, oi.item_note
       ) q
@@ -629,30 +630,19 @@ begin
             join public.products p on p.id = oi.product_id and p.active
             join public.orders o_items on o_items.id = oi.order_id
             where o_items.boat_id = b.id
-              and (
-                (p.category = 'Pieczywo' and o_items.target_date = p_target_date - 1)
-                or (p.category <> 'Pieczywo' and o_items.target_date = p_target_date)
-              )
+              and o_items.target_date = p_target_date
           ), '[]'::jsonb)
         ) as boat_data
         from public.boats b
         left join public.orders o_current on o_current.boat_id = b.id and o_current.target_date = p_target_date
-        left join public.profiles pr on pr.id = coalesce(o_current.submitted_by, (
-          select o_prev.submitted_by
-          from public.orders o_prev
-          where o_prev.boat_id = b.id and o_prev.target_date = p_target_date - 1
-          limit 1
-        ))
+        left join public.profiles pr on pr.id = o_current.submitted_by
         where exists (
           select 1
           from public.order_items oi
           join public.products p on p.id = oi.product_id and p.active
           join public.orders o_items on o_items.id = oi.order_id
           where o_items.boat_id = b.id
-            and (
-              (p.category = 'Pieczywo' and o_items.target_date = p_target_date - 1)
-              or (p.category <> 'Pieczywo' and o_items.target_date = p_target_date)
-            )
+            and o_items.target_date = p_target_date
         )
       ) q
     ), '[]'::jsonb)

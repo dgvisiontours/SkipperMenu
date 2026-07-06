@@ -130,7 +130,7 @@ export const PRODUCTS = [
   ["Granola", "Śniadaniowe", "opak."], ["Owsianka", "Śniadaniowe", "opak."],
   ["Krem czekoladowy", "Śniadaniowe", "słoik"], ["Dżem", "Śniadaniowe", "słoik"], ["Pasta do smarowania", "Śniadaniowe", "szt."],
   ["Rodzynki", "Śniadaniowe", "opak."], ["Masło", "Śniadaniowe", "szt."],
-  ["Wege masło", "Śniadaniowe", "szt."], ["Mąka", "Śniadaniowe", "kg"],
+  ["Mąka", "Śniadaniowe", "kg"],
   ["Cukier", "Śniadaniowe", "kg"], ["Cukier wanilinowy", "Śniadaniowe", "opak."],
   ["Banany", "Owoce", "szt."], ["Jabłka", "Owoce", "szt."],
   ["Gruszki", "Owoce", "szt."], ["Winogrona", "Owoce", "opak."],

@@ -15,10 +15,10 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - panel zaopatrzeniowca pokazujący miejsce każdego jachtu i łączną liczbę osób na aktywnych jachtach;
 - zbiorcze podsumowanie liczby osób na poszczególnych dietach;
 - dodatkowe potwierdzenie przed rozpoczęciem nowego turnusu;
-- jedno zamówienie jachtu na następny dzień, z możliwością poprawiania wyłącznie między 09:00 a 15:00;
-- blokada przed 09:00 i po 15:00 egzekwowana również w bazie danych;
+- jedno zamówienie jachtu na najbliższe poranne wydanie, z możliwością poprawiania wyłącznie w oknie 18:00–09:30 następnego dnia;
+- blokada poza oknem 18:00–09:30 egzekwowana również w bazie danych;
 - panel zaopatrzeniowca: suma produktów z filtrem wszystko / W Rejsie / W Zofiówce / Wyprawa, rozpiska na jachty, brakujące zamówienia;
-- lista zaopatrzeniowa pogrupowana kategoriami; produkty z kategorii **Pieczywo** trafiają na raport dzień później niż reszta zamówienia;
+- lista zaopatrzeniowa pogrupowana kategoriami; wszystkie kategorie, w tym **Pieczywo**, trafiają na tę samą datę wydania;
 - przy produkcie można dopisać **rodzaj** / wariant, który trafia do osobnej kolumny raportu;
 - specjalne prośby i zamienniki są dodawane jako osobne pozycje listy;
 - historia zamówień sternika pokazująca wcześniejsze paczki do kontroli dostawy;
@@ -71,8 +71,10 @@ export const CONFIG = {
   SUPABASE_ANON_KEY: "eyJhbGciOi...",
   DEMO_MODE: false,
   TIMEZONE: "Europe/Warsaw",
-  ORDER_OPEN_HOUR: 9,
-  CUTOFF_HOUR: 15,
+  ORDER_OPEN_HOUR: 18,
+  ORDER_OPEN_MINUTE: 0,
+  CUTOFF_HOUR: 9,
+  CUTOFF_MINUTE: 30,
 };
 ```
 
@@ -147,10 +149,10 @@ Hosting musi działać przez HTTPS — Netlify zapewnia go automatycznie.
 
 ## Codzienny sposób pracy
 
-1. Sternik omawia z załogą potrzeby na następny dzień.
-2. Między 09:00 a 15:00 wybiera produkty, wpisuje ilości i specjale.
+1. Sternik omawia z załogą potrzeby na najbliższe poranne wydanie.
+2. Między 18:00 a 09:30 następnego dnia wybiera produkty, wpisuje ilości i specjale.
 3. Może zapisywać poprawki wielokrotnie; liczy się ostatnia wersja.
-4. Przed 09:00 i po 15:00 konto sternika nie może zmienić zamówienia.
+4. Po 09:30 i przed 18:00 konto sternika nie może zmienić zamówienia.
 5. Zaopatrzeniowiec otwiera raport na dzień wydania:
    - kupuje według listy skonsolidowanej;
    - pakuje produkty według kart poszczególnych jachtów;
