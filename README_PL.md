@@ -25,6 +25,7 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - panel statystyk dla administratora i kont z uprawnieniem do usuwania użytkowników: produkty, kategorie, diety, typy jachtów, skład załóg oraz kontekst jacht/sternik przy produktach;
 - eksport listy zakupów do CSV i drukowanie/zapis do PDF;
 - logowanie i role: sternik, zaopatrzeniowiec, administrator;
+- reset zapomnianego hasła przez bezpieczny link wysyłany na adres e-mail użytkownika;
 - wybrane konta sterników mogą dodatkowo widzieć raport zaopatrzenia i usuwać konta użytkowników;
 - instalacja jako PWA na iOS i Androidzie.
 
@@ -96,6 +97,9 @@ Najprościej:
 5. W Supabase wejdź w **Authentication** → **URL Configuration**:
    - ustaw **Site URL** na adres Netlify,
    - dodaj ten sam adres do **Redirect URLs**.
+
+Adres w **Redirect URLs** jest również używany przez funkcję resetowania hasła. Musi
+być identyczny z publicznym adresem aplikacji, łącznie z `https://`.
 
 Przy każdej aktualizacji przeciągnij folder ponownie albo połącz Netlify z repozytorium GitHub.
 

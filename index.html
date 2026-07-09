@@ -56,6 +56,7 @@
             <label>E-mail<input name="email" type="email" autocomplete="email" required /></label>
             <label>Hasło<input name="password" type="password" autocomplete="current-password" minlength="8" required /></label>
             <button class="button primary wide" type="submit">Zaloguj się</button>
+            <button id="forgotPasswordButton" class="auth-link" type="button">Nie pamiętasz hasła?</button>
           </form>
           <form id="signupForm" class="form-stack hidden">
             <label>Imię i nazwisko<input name="fullName" autocomplete="name" required /></label>
@@ -63,6 +64,19 @@
             <label>E-mail<input name="email" type="email" autocomplete="email" required /></label>
             <label>Hasło<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
             <button class="button primary wide" type="submit">Utwórz konto sternika</button>
+          </form>
+          <form id="passwordRecoveryForm" class="form-stack hidden">
+            <h2>Reset hasła</h2>
+            <p class="form-help">Podaj adres e-mail konta. Wyślemy link do ustawienia nowego hasła.</p>
+            <label>E-mail<input name="email" type="email" autocomplete="email" required /></label>
+            <button class="button primary wide" type="submit">Wyślij link resetujący</button>
+            <button id="cancelRecoveryButton" class="auth-link" type="button">Wróć do logowania</button>
+          </form>
+          <form id="newPasswordForm" class="form-stack hidden">
+            <h2>Ustaw nowe hasło</h2>
+            <label>Nowe hasło<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
+            <label>Powtórz nowe hasło<input name="passwordRepeat" type="password" autocomplete="new-password" minlength="8" required /></label>
+            <button class="button primary wide" type="submit">Zapisz nowe hasło</button>
           </form>
         </div>
       </section>

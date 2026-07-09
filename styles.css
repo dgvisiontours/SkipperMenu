@@ -98,6 +98,9 @@ main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
 .tab { padding: 10px; border: 0; background: transparent; border-radius: 10px; color: var(--muted); }
 .tab.active { background: var(--white); color: var(--ink); box-shadow: 0 3px 10px rgba(20,50,55,.08); font-weight: 700; }
 .form-stack { display: grid; gap: 16px; }
+.form-stack h2, .form-stack p { margin: 0; }
+.form-help { color: var(--muted); line-height: 1.5; }
+.auth-link { border: 0; background: transparent; color: var(--sea); padding: 2px; text-decoration: underline; text-underline-offset: 3px; }
 label { color: var(--ink); font-size: 13px; font-weight: 700; }
 input, textarea, select {
   width: 100%; margin-top: 7px; border: 1px solid #cbd4d1; border-radius: 12px;

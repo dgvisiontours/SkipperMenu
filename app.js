@@ -225,6 +225,36 @@ function saveSession(session) {
   else localStorage.removeItem("proviant-session");
 }
 
+function showAuthForm(formId) {
+  ["#loginForm", "#signupForm", "#passwordRecoveryForm", "#newPasswordForm"]
+    .forEach((selector) => $(selector).classList.toggle("hidden", selector !== formId));
+  const standardTabs = formId === "#loginForm" || formId === "#signupForm";
+  $(".auth-card .tabs").classList.toggle("hidden", !standardTabs);
+  if (standardTabs) {
+    $$("[data-auth-tab]").forEach((tab) => {
+      tab.classList.toggle("active", `#${tab.dataset.authTab}Form` === formId);
+    });
+  }
+}
+
+function recoverySessionFromUrl() {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const error = params.get("error_description") || params.get("error");
+  if (error) {
+    history.replaceState(null, "", `${location.pathname}${location.search}`);
+    throw new Error(decodeURIComponent(error.replace(/\+/g, " ")));
+  }
+  if (params.get("type") !== "recovery" || !params.get("access_token")) return null;
+  const expiresIn = Number(params.get("expires_in")) || 3600;
+  return {
+    access_token: params.get("access_token"),
+    refresh_token: params.get("refresh_token"),
+    token_type: params.get("token_type") || "bearer",
+    expires_in: expiresIn,
+    expires_at: Math.floor(Date.now() / 1000) + expiresIn,
+  };
+}
+
 async function restoreSession() {
   const saved = JSON.parse(localStorage.getItem("proviant-session") || "null");
   if (!saved) return false;
@@ -1464,10 +1494,60 @@ function escapeHtml(value) {
 
 function bindEvents() {
   $$("[data-auth-tab]").forEach((button) => button.addEventListener("click", () => {
-    $$("[data-auth-tab]").forEach((tab) => tab.classList.toggle("active", tab === button));
-    $("#loginForm").classList.toggle("hidden", button.dataset.authTab !== "login");
-    $("#signupForm").classList.toggle("hidden", button.dataset.authTab !== "signup");
+    showAuthForm(`#${button.dataset.authTab}Form`);
   }));
+  $("#forgotPasswordButton").addEventListener("click", () => {
+    const loginEmail = $("#loginForm").elements.email.value;
+    showAuthForm("#passwordRecoveryForm");
+    $("#passwordRecoveryForm").elements.email.value = loginEmail;
+    $("#passwordRecoveryForm").elements.email.focus();
+  });
+  $("#cancelRecoveryButton").addEventListener("click", () => showAuthForm("#loginForm"));
+  $("#passwordRecoveryForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector("button[type='submit']");
+    const redirectTo = `${location.origin}${location.pathname}`;
+    button.disabled = true;
+    try {
+      await api(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+        method: "POST",
+        auth: false,
+        body: { email: new FormData(form).get("email") },
+      });
+      toast("Jeśli konto istnieje, link do zmiany hasła został wysłany.");
+      showAuthForm("#loginForm");
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+  $("#newPasswordForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const password = String(data.get("password") || "");
+    const passwordRepeat = String(data.get("passwordRepeat") || "");
+    if (password !== passwordRepeat) {
+      toast("Podane hasła nie są takie same.", true);
+      return;
+    }
+    const button = form.querySelector("button[type='submit']");
+    button.disabled = true;
+    try {
+      await api("/auth/v1/user", { method: "PUT", body: { password } });
+      saveSession(null);
+      history.replaceState(null, "", `${location.pathname}${location.search}`);
+      form.reset();
+      showAuthForm("#loginForm");
+      toast("Hasło zostało zmienione. Możesz się zalogować.");
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
   $("#enterDemoButton").addEventListener("click", enterDemo);
   $("#productSearch").addEventListener("input", renderProducts);
   $("#recipeSearch").addEventListener("input", renderRecipes);
@@ -1593,6 +1673,20 @@ async function init() {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
   if (!configured() || CONFIG.DEMO_MODE) {
     showView("#setupView");
+    return;
+  }
+  try {
+    const recoverySession = recoverySessionFromUrl();
+    if (recoverySession) {
+      saveSession(recoverySession);
+      showView("#authView");
+      showAuthForm("#newPasswordForm");
+      return;
+    }
+  } catch (error) {
+    toast(`Link do zmiany hasła jest nieprawidłowy lub wygasł: ${error.message}`, true);
+    showView("#authView");
+    showAuthForm("#passwordRecoveryForm");
     return;
   }
   if (await restoreSession()) {
