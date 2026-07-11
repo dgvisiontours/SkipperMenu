@@ -297,6 +297,10 @@ function openApp() {
     "hidden",
     !["skipper", "admin"].includes(state.profile.role),
   );
+  $("#finishTurnusButton").classList.toggle(
+    "hidden",
+    !["skipper", "admin"].includes(state.profile.role) || !state.profile.boat_id,
+  );
   renderNavigation();
   setupOrderPanel();
   renderDietSummary();
@@ -367,8 +371,10 @@ function switchPanel(panel) {
   $$("#appNav button").forEach((button) => button.classList.toggle("active", button.dataset.panel === panel));
   if (panel === "skipper") {
     $("#roleEyebrow").textContent = "Panel sternika";
-    $("#heroTitle").textContent = "Zamówienie na najbliższe wydanie";
-    $("#heroSubtitle").textContent = `${state.profile.boats?.name || "Twój jacht"} · wydanie ${formatDate(currentOrderTargetDate())}`;
+    $("#heroTitle").textContent = state.profile.boat_id ? "Zamówienie na najbliższe wydanie" : "Brak aktywnego turnusu";
+    $("#heroSubtitle").textContent = state.profile.boat_id
+      ? `${state.profile.boats?.name || "Twój jacht"} · wydanie ${formatDate(currentOrderTargetDate())}`
+      : "Rozpocznij nowy turnus, aby przypisać jacht i składać zamówienia.";
     loadMyOrder();
   } else if (panel === "breakfast") {
     $("#roleEyebrow").textContent = "Baza śniadań";
@@ -410,8 +416,10 @@ function updateDeadline() {
     : windowState === "after"
       ? "Przyjmowanie zamówień zakończone"
       : "Zamówienia są otwarte";
-  $("#submitOrderButton").disabled = closed && state.profile.role === "skipper";
-  $("#submitHeadline").textContent = windowState === "before"
+  $("#submitOrderButton").disabled = !state.profile.boat_id || (closed && state.profile.role === "skipper");
+  $("#submitHeadline").textContent = !state.profile.boat_id
+    ? "Rozpocznij nowy turnus, aby składać zamówienia"
+    : windowState === "before"
     ? `Zamówienia można składać od ${formatConfiguredTime(CONFIG.ORDER_OPEN_HOUR, CONFIG.ORDER_OPEN_MINUTE)} do ${formatConfiguredTime(CONFIG.CUTOFF_HOUR, CONFIG.CUTOFF_MINUTE)}`
     : windowState === "after"
       ? "Termin składania zamówień minął"
@@ -672,6 +680,7 @@ async function saveDietPreferences(event) {
       renderSpecialRequests();
       $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
       $("#userLabel").textContent = `${state.profile.full_name} · ${result.boat_name}`;
+      $("#finishTurnusButton").classList.remove("hidden");
       $("#heroSubtitle").textContent = `${result.boat_name} · wydanie ${formatDate(currentOrderTargetDate())}`;
       renderProducts();
       renderDietSummary();
@@ -696,6 +705,46 @@ async function saveDietPreferences(event) {
   } finally {
     button.disabled = false;
     button.textContent = state.newTurnusMode ? "Rozpocznij nowy turnus" : "Zapisz profil załogi";
+  }
+}
+
+async function finishTurnus() {
+  if (!state.profile?.boat_id) {
+    toast("To konto nie ma aktywnego turnusu.", true);
+    return;
+  }
+  const boatName = state.profile.boats?.name || "aktualny jacht";
+  const confirmed = window.confirm(
+    `Czy na pewno zakończyć turnus na jachcie „${boatName}”?\n\nJacht i załoga przestaną być liczone w bieżących raportach oraz statystykach. Historyczne dane zostaną zachowane. Konto sternika pozostanie aktywne.`,
+  );
+  if (!confirmed) return;
+
+  const button = $("#finishTurnusButton");
+  button.disabled = true;
+  button.textContent = "Kończenie…";
+  try {
+    if (!state.demo) await api("/rest/v1/rpc/finish_current_turnus", { method: "POST", body: {} });
+    state.profile.boat_id = null;
+    state.profile.boats = null;
+    state.profile.diet_preferences = null;
+    state.quantities.clear();
+    state.productNotes.clear();
+    state.specialRequests = [""];
+    state.dirty = false;
+    renderSpecialRequests();
+    renderProducts();
+    renderDietSummary();
+    $("#userLabel").textContent = `${state.profile.full_name} · ${roleName(state.profile.role)}`;
+    $("#finishTurnusButton").classList.add("hidden");
+    $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
+    updateOrderSummary();
+    switchPanel("skipper");
+    toast("Turnus został zakończony. Konto może rozpocząć kolejny turnus przyciskiem „Nowy turnus”.");
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Zakończ turnus";
   }
 }
 
@@ -951,7 +1000,7 @@ async function submitOrder() {
   } catch (error) {
     toast(error.message, true);
   } finally {
-    button.disabled = orderWindowState() !== "open" && state.profile.role === "skipper";
+    button.disabled = !state.profile.boat_id || (orderWindowState() !== "open" && state.profile.role === "skipper");
     button.textContent = "Zapisz zamówienie";
   }
 }
@@ -1592,6 +1641,7 @@ function bindEvents() {
     openDietModal(false);
   });
   $("#newTurnusButton").addEventListener("click", openNewTurnusModal);
+  $("#finishTurnusButton").addEventListener("click", finishTurnus);
   $("#closeDietModalButton").addEventListener("click", closeDietModal);
   $("#dietForm").addEventListener("submit", saveDietPreferences);
   $$("#dietForm input[type='checkbox']").forEach((input) => input.addEventListener("change", () => {

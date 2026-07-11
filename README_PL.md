@@ -11,6 +11,7 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - obowiązkowy typ jachtu (rekreacyjny, szkoleniowy lub wyprawowy) oraz liczebność załogi z podziałem na kobiety i mężczyzn;
 - możliwość późniejszej edycji diet oraz specjalne prośby w zamówieniu;
 - przycisk **Nowy turnus**, który bez tworzenia nowego konta zmienia jacht i profil diet załogi;
+- przycisk **Zakończ turnus**, który dezaktywuje aktualny jacht i odpina załogę od sternika bez usuwania historii;
 - obowiązkowy wybór miejsca przy zamówieniu: **W Rejsie** albo **W Zofiówce**;
 - panel zaopatrzeniowca pokazujący miejsce każdego jachtu i łączną liczbę osób na aktywnych jachtach;
 - zbiorcze podsumowanie liczby osób na poszczególnych dietach;
@@ -173,6 +174,11 @@ podaje nazwę i typ kolejnego jachtu, liczebność załogi, podział na kobiety 
 oraz diety. Poprzedni jacht zostaje
 dezaktywowany, ale jego wcześniejsze zamówienia pozostają w historii. Konto, e-mail
 i hasło sternika nie zmieniają się.
+
+Jeśli sternik kończy turnus i nie rozpoczyna od razu kolejnego, wybiera **Zakończ turnus**.
+Aktualny jacht zostaje dezaktywowany i nie jest już liczony w bieżących raportach,
+zamówieniach ani statystykach załóg. Konto sternika pozostaje aktywne, ale bez nowego
+turnusu nie może składać zamówień.
 
 ## Ważne decyzje przed startem
 

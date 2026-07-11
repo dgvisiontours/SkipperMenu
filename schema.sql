@@ -453,6 +453,44 @@ begin
 end;
 $$;
 
+create or replace function public.finish_current_turnus()
+returns jsonb
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_role public.app_role;
+  v_boat_id uuid;
+  v_boat_name text;
+begin
+  select p.role, p.boat_id, b.name
+  into v_role, v_boat_id, v_boat_name
+  from public.profiles p
+  left join public.boats b on b.id = p.boat_id
+  where p.id = auth.uid();
+
+  if v_role not in ('skipper', 'admin') then
+    raise exception 'Tylko sternik może zakończyć turnus.';
+  end if;
+  if v_boat_id is null then
+    raise exception 'Konto nie ma aktywnego turnusu.';
+  end if;
+
+  update public.boats
+  set active = false
+  where id = v_boat_id;
+
+  update public.profiles
+  set boat_id = null, diet_preferences = null
+  where id = auth.uid();
+
+  return jsonb_build_object(
+    'boat_id', v_boat_id,
+    'boat_name', v_boat_name
+  );
+end;
+$$;
+
 -- Zapisy odbywają się wyłącznie przez tę funkcję. Deadline jest sprawdzany po stronie serwera.
 drop function if exists public.submit_order(date,text,text,text[],jsonb);
 
@@ -586,7 +624,12 @@ begin
       ) diets
       where coalesce(diet_count, 0) > 0
     ), '[]'::jsonb),
-    'submitted_boats', (select count(*) from public.orders where target_date = p_target_date),
+    'submitted_boats', (
+      select count(*)
+      from public.orders o
+      join public.boats b on b.id = o.boat_id and b.active
+      where o.target_date = p_target_date
+    ),
     'missing_boats', coalesce((
       select jsonb_agg(b.name order by b.name)
       from public.boats b
@@ -608,7 +651,7 @@ begin
         from public.order_items oi
         join public.products p on p.id = oi.product_id and p.active
         join public.orders o on o.id = oi.order_id and o.target_date = p_target_date
-        join public.boats b on b.id = o.boat_id
+        join public.boats b on b.id = o.boat_id and b.active
         group by p.id, p.name, p.category, p.unit, p.sort_order, oi.item_note
       ) q
     ), '[]'::jsonb),
@@ -636,7 +679,7 @@ begin
         from public.boats b
         left join public.orders o_current on o_current.boat_id = b.id and o_current.target_date = p_target_date
         left join public.profiles pr on pr.id = o_current.submitted_by
-        where exists (
+        where b.active and exists (
           select 1
           from public.order_items oi
           join public.products p on p.id = oi.product_id and p.active
@@ -924,6 +967,7 @@ grant execute on function public.delete_user_account(text) to authenticated;
 grant execute on function public.save_diet_preferences(jsonb) to authenticated;
 grant execute on function public.save_crew_profile(jsonb,jsonb) to authenticated;
 grant execute on function public.start_new_turnus(text,jsonb,jsonb) to authenticated;
+grant execute on function public.finish_current_turnus() to authenticated;
 grant execute on function public.current_app_role() to authenticated;
 grant execute on function public.current_boat_id() to authenticated;
 grant execute on function public.current_user_has_extra_access() to authenticated;
