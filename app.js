@@ -301,6 +301,8 @@ function openApp() {
     "hidden",
     !["skipper", "admin"].includes(state.profile.role) || !state.profile.boat_id,
   );
+  $("#enablePushButton").classList.toggle("hidden", !canUsePushReminders());
+  updatePushButton().catch(() => {});
   renderNavigation();
   setupOrderPanel();
   renderDietSummary();
@@ -340,6 +342,75 @@ function canManageUsers() {
 
 function canViewStats() {
   return canManageUsers();
+}
+
+function pushConfigured() {
+  return CONFIG.VAPID_PUBLIC_KEY && !CONFIG.VAPID_PUBLIC_KEY.includes("TU_WKLEJ");
+}
+
+function canUsePushReminders() {
+  return Boolean(
+    state.profile
+    && ["skipper", "admin"].includes(state.profile.role)
+    && state.profile.boat_id
+    && "serviceWorker" in navigator
+    && "PushManager" in window
+    && "Notification" in window,
+  );
+}
+
+function urlBase64ToUint8Array(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+}
+
+async function updatePushButton() {
+  const button = $("#enablePushButton");
+  if (!button || button.classList.contains("hidden")) return;
+  if (!pushConfigured()) {
+    button.textContent = "Powiadomienia";
+    button.disabled = false;
+    return;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  button.textContent = subscription ? "Powiadomienia włączone" : "Powiadomienia";
+  button.disabled = Boolean(subscription);
+}
+
+async function enablePushReminders() {
+  if (!canUsePushReminders()) {
+    toast("Powiadomienia są dostępne tylko dla aktywnego sternika z przypisanym jachtem.", true);
+    return;
+  }
+  if (!pushConfigured()) {
+    toast("Najpierw uzupełnij VAPID_PUBLIC_KEY w config.js i wdroż funkcję wysyłającą push.", true);
+    return;
+  }
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    toast("Powiadomienia nie zostały włączone.", true);
+    return;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(CONFIG.VAPID_PUBLIC_KEY),
+  });
+  const payload = subscription.toJSON();
+  await api("/rest/v1/rpc/upsert_push_subscription", {
+    method: "POST",
+    body: {
+      p_endpoint: payload.endpoint,
+      p_p256dh: payload.keys?.p256dh,
+      p_auth: payload.keys?.auth,
+      p_user_agent: navigator.userAgent,
+    },
+  });
+  await updatePushButton();
+  toast("Powiadomienia o brakującym zamówieniu zostały włączone.");
 }
 
 function renderNavigation() {
@@ -681,6 +752,8 @@ async function saveDietPreferences(event) {
       $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
       $("#userLabel").textContent = `${state.profile.full_name} · ${result.boat_name}`;
       $("#finishTurnusButton").classList.remove("hidden");
+      $("#enablePushButton").classList.toggle("hidden", !canUsePushReminders());
+      updatePushButton().catch(() => {});
       $("#heroSubtitle").textContent = `${result.boat_name} · wydanie ${formatDate(currentOrderTargetDate())}`;
       renderProducts();
       renderDietSummary();
@@ -736,6 +809,7 @@ async function finishTurnus() {
     renderDietSummary();
     $("#userLabel").textContent = `${state.profile.full_name} · ${roleName(state.profile.role)}`;
     $("#finishTurnusButton").classList.add("hidden");
+    $("#enablePushButton").classList.add("hidden");
     $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
     updateOrderSummary();
     switchPanel("skipper");
@@ -1642,6 +1716,7 @@ function bindEvents() {
   });
   $("#newTurnusButton").addEventListener("click", openNewTurnusModal);
   $("#finishTurnusButton").addEventListener("click", finishTurnus);
+  $("#enablePushButton").addEventListener("click", () => enablePushReminders().catch((error) => toast(error.message, true)));
   $("#closeDietModalButton").addEventListener("click", closeDietModal);
   $("#dietForm").addEventListener("submit", saveDietPreferences);
   $$("#dietForm input[type='checkbox']").forEach((input) => input.addEventListener("change", () => {

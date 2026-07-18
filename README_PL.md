@@ -27,6 +27,7 @@ Gotowa aplikacja PWA dla sterników i zaopatrzeniowca. Działa w przeglądarce o
 - eksport listy zakupów do CSV i drukowanie/zapis do PDF;
 - logowanie i role: sternik, zaopatrzeniowiec, administrator;
 - reset zapomnianego hasła przez bezpieczny link wysyłany na adres e-mail użytkownika;
+- powiadomienia push dla aktywnych sterników bez zamówienia, wysyłane o 23:00 i 09:00;
 - wybrane konta sterników mogą dodatkowo widzieć raport zaopatrzenia i usuwać konta użytkowników;
 - instalacja jako PWA na iOS i Androidzie.
 
@@ -77,6 +78,7 @@ export const CONFIG = {
   ORDER_OPEN_MINUTE: 0,
   CUTOFF_HOUR: 9,
   CUTOFF_MINUTE: 30,
+  VAPID_PUBLIC_KEY: "publiczny-klucz-vapid",
 };
 ```
 
@@ -103,6 +105,52 @@ Adres w **Redirect URLs** jest również używany przez funkcję resetowania has
 być identyczny z publicznym adresem aplikacji, łącznie z `https://`.
 
 Przy każdej aktualizacji przeciągnij folder ponownie albo połącz Netlify z repozytorium GitHub.
+
+### 3a. Włącz powiadomienia push
+
+Powiadomienia push wymagają serwerowego wysyłania wiadomości. Frontend zapisuje zgodę
+użytkownika, ale przypomnienia o 23:00 i 09:00 wysyła Supabase Edge Function.
+
+1. Wygeneruj parę kluczy VAPID, np. lokalnie:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+2. Publiczny klucz wpisz w `config.js` jako `VAPID_PUBLIC_KEY`.
+3. W Supabase uruchom aktualny `schema.sql`, żeby utworzyć tabelę `push_subscriptions`
+   i funkcje RPC.
+4. Wdróż funkcję z folderu:
+
+```text
+supabase/functions/send-order-reminders
+```
+
+5. Ustaw sekrety Edge Function:
+
+```text
+SUPABASE_URL=https://abcdefgh.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=...
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:kontakt@skipper.pl
+APP_URL=https://adres-twojej-aplikacji.netlify.app/
+REMINDER_FUNCTION_SECRET=długi-losowy-sekret
+```
+
+6. Ustaw harmonogram uruchamiania funkcji w Supabase na godziny warszawskie:
+   - `23:00` codziennie,
+   - `09:00` codziennie.
+
+Wywołanie harmonogramu musi przekazać nagłówek:
+
+```text
+Authorization: Bearer długi-losowy-sekret
+```
+
+Funkcja sama sprawdza, którzy aktywni sternicy z aktywnym jachtem nie mają zamówienia
+na właściwą datę dostawy wynikającą z okna 18:00–09:30. Na iPhonie powiadomienia web push
+wymagają dodania aplikacji do ekranu początkowego i ręcznego włączenia zgody przez sternika.
 
 ### 4. Utwórz użytkowników
 
@@ -183,11 +231,11 @@ turnusu nie może składać zamówień.
 ## Ważne decyzje przed startem
 
 - Jednostki zostały dobrane na podstawie praktycznego znaczenia produktów w arkuszu. Przed rejsem warto je przejrzeć w tabeli `products` w Supabase.
-- Wersja obecna przyjmuje zamówienia wyłącznie na następny dzień.
+- Wersja obecna przyjmuje zamówienia w oknie 18:00–09:30 na najbliższe poranne wydanie.
 - Deadline korzysta ze strefy `Europe/Warsaw`, również podczas zmiany czasu letniego.
 - Aplikacja buforuje interfejs, ale wysłanie zamówienia wymaga internetu. Na Mazurach warto zapisywać wcześniej, gdy jest zasięg.
 - Publiczny klucz `anon` może znajdować się w aplikacji. Nigdy nie wklejaj do niej tajnego klucza `service_role`.
 
 ## Dalsze rozszerzenia
 
-W następnej wersji można dodać: powiadomienia o 17:00, panel zarządzania katalogiem, wybór portu dostawy, historię i kopiowanie zamówień, potwierdzanie wydania paczki oraz natywną publikację przez Capacitor do App Store i Google Play.
+W następnej wersji można dodać: panel zarządzania katalogiem, wybór portu dostawy, kopiowanie zamówień, potwierdzanie wydania paczki oraz natywną publikację przez Capacitor do App Store i Google Play.

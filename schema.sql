@@ -82,6 +82,17 @@ create table if not exists public.order_items (
 
 alter table public.order_items add column if not exists item_note text not null default '';
 
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  user_agent text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 insert into public.products (name, category, unit, sort_order) values
 ('Chleb pszenny','Pieczywo','szt.',1),('Chleb razowy','Pieczywo','szt.',2),
 ('Chleb tostowy','Pieczywo','opak.',3),('Chleb bezglutenowy','Pieczywo','szt.',4),
@@ -96,7 +107,7 @@ insert into public.products (name, category, unit, sort_order) values
 ('Twarożek Grani','Nabiał i zamienniki','opak.',16),
 ('Hummus','Nabiał i zamienniki','opak.',16),('Serek wiejski','Nabiał i zamienniki','szt.',17),
 ('Skyr Naturalny','Nabiał i zamienniki','szt.',18),('Skyr owocowy','Nabiał i zamienniki','szt.',19),
-('Skyr waniliowy','Nabiał i zamienniki','szt.',20),('Passata pomidorowa','Dodatki','szt.',21),
+('Skyr waniliowy','Nabiał i zamienniki','szt.',20),('Skyr pitny','Nabiał i zamienniki','szt.',21),('Passata pomidorowa','Dodatki','szt.',22),
 ('Suszone pomidory','Dodatki','słoik',22),('Sok do wody','Dodatki','butelka',23),('Szynka','Mięso i zamienniki','opak.',24),
 ('Schab w plastrach','Mięso i zamienniki','opak.',24),('Salami','Mięso i zamienniki','opak.',25),
 ('Kabanosy','Mięso i zamienniki','opak.',26),('Boczek','Mięso i zamienniki','opak.',27),
@@ -127,6 +138,7 @@ update public.products set active = false where name = 'Ryba wędzona';
 update public.products set active = false where name = 'Olej';
 update public.products set active = false where name = 'Truskawki';
 update public.products set active = false where name = 'Wege masło';
+update public.products set active = true where name = 'Skyr pitny';
 update public.products set unit = 'paczka 10 szt.' where name = 'Jajka';
 update public.products set unit = 'paczka 12 szt.' where name = 'Parówki';
 
@@ -223,6 +235,7 @@ alter table public.profiles enable row level security;
 alter table public.products enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
+alter table public.push_subscriptions enable row level security;
 
 drop policy if exists "authenticated read boats" on public.boats;
 create policy "authenticated read boats" on public.boats for select to authenticated using (true);
@@ -247,6 +260,11 @@ using (
       and (o.boat_id = public.current_boat_id() or public.can_view_supplier_report())
   )
 );
+
+drop policy if exists "own push subscriptions" on public.push_subscriptions;
+create policy "own push subscriptions" on public.push_subscriptions for all to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
 
 create or replace function public.diet_preferences_to_text(p_preferences jsonb)
 returns text
@@ -487,6 +505,107 @@ begin
   return jsonb_build_object(
     'boat_id', v_boat_id,
     'boat_name', v_boat_name
+  );
+end;
+$$;
+
+create or replace function public.upsert_push_subscription(
+  p_endpoint text,
+  p_p256dh text,
+  p_auth text,
+  p_user_agent text default ''
+) returns jsonb
+language plpgsql security definer
+set search_path = public
+as $$
+declare
+  v_role public.app_role;
+  v_boat_id uuid;
+  v_subscription_id uuid;
+begin
+  select p.role, p.boat_id
+  into v_role, v_boat_id
+  from public.profiles p
+  join public.boats b on b.id = p.boat_id and b.active
+  where p.id = auth.uid();
+
+  if v_role not in ('skipper', 'admin') or v_boat_id is null then
+    raise exception 'Powiadomienia może włączyć tylko aktywny sternik z przypisanym jachtem.';
+  end if;
+  if nullif(trim(p_endpoint), '') is null or nullif(trim(p_p256dh), '') is null or nullif(trim(p_auth), '') is null then
+    raise exception 'Nieprawidłowa subskrypcja push.';
+  end if;
+
+  insert into public.push_subscriptions(user_id, endpoint, p256dh, auth, user_agent, updated_at)
+  values (auth.uid(), p_endpoint, p_p256dh, p_auth, coalesce(p_user_agent, ''), now())
+  on conflict (endpoint) do update set
+    user_id = excluded.user_id,
+    p256dh = excluded.p256dh,
+    auth = excluded.auth,
+    user_agent = excluded.user_agent,
+    updated_at = now()
+  returning id into v_subscription_id;
+
+  return jsonb_build_object('subscription_id', v_subscription_id);
+end;
+$$;
+
+create or replace function public.delete_push_subscription(p_endpoint text)
+returns void
+language plpgsql security definer
+set search_path = public
+as $$
+begin
+  delete from public.push_subscriptions
+  where endpoint = p_endpoint
+    and (user_id = auth.uid() or auth.role() = 'service_role');
+end;
+$$;
+
+create or replace function public.get_order_reminder_push_targets()
+returns jsonb
+language plpgsql stable security definer
+set search_path = public
+as $$
+declare
+  v_now timestamp := now() at time zone 'Europe/Warsaw';
+  v_minutes integer;
+  v_target_date date;
+  v_result jsonb;
+begin
+  if auth.role() <> 'service_role' then
+    raise exception 'Brak uprawnień do pobrania listy powiadomień.';
+  end if;
+
+  v_minutes := extract(hour from v_now)::integer * 60 + extract(minute from v_now)::integer;
+  v_target_date := case
+    when v_minutes >= 18 * 60 then v_now::date + 2
+    else v_now::date + 1
+  end;
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'user_id', p.id,
+    'email', u.email,
+    'boat_name', b.name,
+    'target_date', v_target_date,
+    'endpoint', ps.endpoint,
+    'keys', jsonb_build_object('p256dh', ps.p256dh, 'auth', ps.auth)
+  ) order by b.name), '[]'::jsonb)
+  into v_result
+  from public.profiles p
+  join auth.users u on u.id = p.id
+  join public.boats b on b.id = p.boat_id and b.active
+  join public.push_subscriptions ps on ps.user_id = p.id
+  where p.role in ('skipper', 'admin')
+    and not exists (
+      select 1 from public.orders o
+      where o.boat_id = b.id
+        and o.target_date = v_target_date
+    );
+
+  return jsonb_build_object(
+    'target_date', v_target_date,
+    'targets', v_result
   );
 end;
 $$;
@@ -968,6 +1087,9 @@ grant execute on function public.save_diet_preferences(jsonb) to authenticated;
 grant execute on function public.save_crew_profile(jsonb,jsonb) to authenticated;
 grant execute on function public.start_new_turnus(text,jsonb,jsonb) to authenticated;
 grant execute on function public.finish_current_turnus() to authenticated;
+grant execute on function public.upsert_push_subscription(text,text,text,text) to authenticated;
+grant execute on function public.delete_push_subscription(text) to authenticated;
+grant execute on function public.get_order_reminder_push_targets() to service_role;
 grant execute on function public.current_app_role() to authenticated;
 grant execute on function public.current_boat_id() to authenticated;
 grant execute on function public.current_user_has_extra_access() to authenticated;
