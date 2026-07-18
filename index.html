@@ -22,11 +22,20 @@
         </span>
       </a>
       <div id="userMenu" class="user-menu hidden">
-        <span id="userLabel"></span>
-        <button id="enablePushButton" class="button secondary compact hidden" type="button">Powiadomienia</button>
-        <button id="newTurnusButton" class="button secondary compact hidden" type="button">Nowy turnus</button>
-        <button id="finishTurnusButton" class="button danger compact hidden" type="button">Zakończ turnus</button>
-        <button id="logoutButton" class="button ghost compact">Wyloguj</button>
+        <button id="userMenuToggle" class="user-menu-toggle" type="button" aria-expanded="false" aria-controls="userMenuDropdown">
+          <span id="userLabel"></span>
+          <span class="menu-chevron" aria-hidden="true">▾</span>
+        </button>
+        <div id="userMenuDropdown" class="user-menu-dropdown hidden">
+          <div class="user-menu-header">
+            <strong id="userMenuName"></strong>
+            <small id="userMenuContext"></small>
+          </div>
+          <button id="newTurnusButton" class="menu-item hidden" type="button">Nowy turnus</button>
+          <button id="finishTurnusButton" class="menu-item danger hidden" type="button">Zakończ turnus</button>
+          <button id="enablePushButton" class="menu-item hidden" type="button">Powiadomienia</button>
+          <button id="logoutButton" class="menu-item" type="button">Wyloguj</button>
+        </div>
       </div>
     </header>
 

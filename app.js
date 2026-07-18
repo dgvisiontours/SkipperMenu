@@ -292,7 +292,7 @@ function enterDemo() {
 function openApp() {
   showView("#appView");
   $("#userMenu").classList.remove("hidden");
-  $("#userLabel").textContent = `${state.profile.full_name} · ${state.profile.boats?.name || roleName(state.profile.role)}`;
+  updateUserMenuLabels();
   $("#newTurnusButton").classList.toggle(
     "hidden",
     !["skipper", "admin"].includes(state.profile.role),
@@ -344,6 +344,30 @@ function canViewStats() {
   return canManageUsers();
 }
 
+function userMenuContextText() {
+  return state.profile?.boats?.name || (state.profile?.boat_id ? "Aktywny turnus" : roleName(state.profile?.role));
+}
+
+function setUserMenuOpen(open) {
+  const dropdown = $("#userMenuDropdown");
+  const toggle = $("#userMenuToggle");
+  if (!dropdown || !toggle) return;
+  dropdown.classList.toggle("hidden", !open);
+  toggle.setAttribute("aria-expanded", String(open));
+}
+
+function closeUserMenu() {
+  setUserMenuOpen(false);
+}
+
+function updateUserMenuLabels() {
+  if (!state.profile) return;
+  const context = userMenuContextText();
+  $("#userLabel").textContent = `${state.profile.full_name} · ${context}`;
+  $("#userMenuName").textContent = state.profile.full_name;
+  $("#userMenuContext").textContent = context;
+}
+
 function pushConfigured() {
   return CONFIG.VAPID_PUBLIC_KEY && !CONFIG.VAPID_PUBLIC_KEY.includes("TU_WKLEJ");
 }
@@ -370,13 +394,13 @@ async function updatePushButton() {
   const button = $("#enablePushButton");
   if (!button || button.classList.contains("hidden")) return;
   if (!pushConfigured()) {
-    button.textContent = "Powiadomienia";
+    button.textContent = "Włącz powiadomienia";
     button.disabled = false;
     return;
   }
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.getSubscription();
-  button.textContent = subscription ? "Powiadomienia włączone" : "Powiadomienia";
+  button.textContent = subscription ? "Powiadomienia włączone" : "Włącz powiadomienia";
   button.disabled = Boolean(subscription);
 }
 
@@ -750,7 +774,7 @@ async function saveDietPreferences(event) {
       state.specialRequests = [""];
       renderSpecialRequests();
       $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
-      $("#userLabel").textContent = `${state.profile.full_name} · ${result.boat_name}`;
+      updateUserMenuLabels();
       $("#finishTurnusButton").classList.remove("hidden");
       $("#enablePushButton").classList.toggle("hidden", !canUsePushReminders());
       updatePushButton().catch(() => {});
@@ -807,7 +831,7 @@ async function finishTurnus() {
     renderSpecialRequests();
     renderProducts();
     renderDietSummary();
-    $("#userLabel").textContent = `${state.profile.full_name} · ${roleName(state.profile.role)}`;
+    updateUserMenuLabels();
     $("#finishTurnusButton").classList.add("hidden");
     $("#enablePushButton").classList.add("hidden");
     $$('input[name="orderLocation"]').forEach((input) => { input.checked = false; });
@@ -1616,6 +1640,15 @@ function escapeHtml(value) {
 }
 
 function bindEvents() {
+  $("#userMenuToggle").addEventListener("click", (event) => {
+    event.stopPropagation();
+    setUserMenuOpen($("#userMenuToggle").getAttribute("aria-expanded") !== "true");
+  });
+  $("#userMenuDropdown").addEventListener("click", (event) => event.stopPropagation());
+  document.addEventListener("click", closeUserMenu);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeUserMenu();
+  });
   $$("[data-auth-tab]").forEach((button) => button.addEventListener("click", () => {
     showAuthForm(`#${button.dataset.authTab}Form`);
   }));
@@ -1714,9 +1747,18 @@ function bindEvents() {
     }
     openDietModal(false);
   });
-  $("#newTurnusButton").addEventListener("click", openNewTurnusModal);
-  $("#finishTurnusButton").addEventListener("click", finishTurnus);
-  $("#enablePushButton").addEventListener("click", () => enablePushReminders().catch((error) => toast(error.message, true)));
+  $("#newTurnusButton").addEventListener("click", () => {
+    closeUserMenu();
+    openNewTurnusModal();
+  });
+  $("#finishTurnusButton").addEventListener("click", () => {
+    closeUserMenu();
+    finishTurnus();
+  });
+  $("#enablePushButton").addEventListener("click", () => {
+    closeUserMenu();
+    enablePushReminders().catch((error) => toast(error.message, true));
+  });
   $("#closeDietModalButton").addEventListener("click", closeDietModal);
   $("#dietForm").addEventListener("submit", saveDietPreferences);
   $$("#dietForm input[type='checkbox']").forEach((input) => input.addEventListener("change", () => {
@@ -1745,6 +1787,7 @@ function bindEvents() {
     updateOrderSummary();
   }));
   $("#logoutButton").addEventListener("click", () => {
+    closeUserMenu();
     saveSession(null);
     state.demo = false;
     state.profile = null;
