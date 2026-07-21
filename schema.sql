@@ -107,7 +107,8 @@ insert into public.products (name, category, unit, sort_order) values
 ('Twarożek Grani','Nabiał i zamienniki','opak.',16),
 ('Hummus','Nabiał i zamienniki','opak.',16),('Serek wiejski','Nabiał i zamienniki','szt.',17),
 ('Skyr Naturalny','Nabiał i zamienniki','szt.',18),('Skyr owocowy','Nabiał i zamienniki','szt.',19),
-('Skyr waniliowy','Nabiał i zamienniki','szt.',20),('Skyr pitny','Nabiał i zamienniki','szt.',21),('Passata pomidorowa','Dodatki','szt.',22),
+('Skyr waniliowy','Nabiał i zamienniki','szt.',20),('Skyr pitny waniliowy','Nabiał i zamienniki','szt.',21),
+('Skyr pitny owocowy','Nabiał i zamienniki','szt.',22),('Kefir','Nabiał i zamienniki','szt.',23),('Passata pomidorowa','Dodatki','szt.',24),
 ('Suszone pomidory','Dodatki','słoik',22),('Sok do wody','Dodatki','butelka',23),('Szynka','Mięso i zamienniki','opak.',24),
 ('Schab w plastrach','Mięso i zamienniki','opak.',24),('Salami','Mięso i zamienniki','opak.',25),
 ('Kabanosy','Mięso i zamienniki','opak.',26),('Boczek','Mięso i zamienniki','opak.',27),
@@ -138,7 +139,8 @@ update public.products set active = false where name = 'Ryba wędzona';
 update public.products set active = false where name = 'Olej';
 update public.products set active = false where name = 'Truskawki';
 update public.products set active = false where name = 'Wege masło';
-update public.products set active = true where name = 'Skyr pitny';
+update public.products set active = false where name = 'Skyr pitny';
+update public.products set active = true where name in ('Skyr pitny waniliowy', 'Skyr pitny owocowy', 'Kefir');
 update public.products set unit = 'paczka 10 szt.' where name = 'Jajka';
 update public.products set unit = 'paczka 12 szt.' where name = 'Parówki';
 
